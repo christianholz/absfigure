@@ -1,0 +1,506 @@
+%%
+%% absfigure.sty
+%% Absolute figure and table placement for LaTeX
+%%
+%% Copyright (c) 2026 Christian Holz
+%% Released under the MIT License. See LICENSE for details.
+%%
+\NeedsTeXFormat{LaTeX2e}[1995/12/01]
+\ProvidesPackage{absfigure}[2026/02/25 v0.1 Absolute figure and table placement]
+
+\RequirePackage{keyval}
+\RequirePackage{environ}
+
+%% ============================================================
+%% Storage
+%% ============================================================
+
+% Counter for unique float IDs
+\newcount\absf@count
+\absf@count=\z@
+
+% Pending list: comma-separated IDs
+\def\absf@pending{}
+
+% Track column identity to handle \@startcolumn re-entries.
+% \@startcolumn may be called multiple times for the same column
+% (via the \@whilesw\if@fcolmade loop). Each re-entry resets
+% \@colroom = \@colht, undoing our space reduction. We detect
+% re-entries by comparing page+column identity and re-apply
+% the stored reduction.
+\def\absf@lastcolid{}
+\newdimen\absf@colreduce
+
+% Our own spanning-bottom float list (the kernel has no \@dblbotlist)
+\global\let\absf@dblbotlist\@empty
+
+%% ============================================================
+%% Key-value interface
+%% ============================================================
+
+\def\absf@cur@page{}
+\def\absf@cur@pos{t}
+\def\absf@cur@col{1}
+
+\define@key{absfigure}{page}{\absf@set@page{#1}}
+
+% Normalize page value: current→\the\c@page, pass through otherwise
+\def\absf@set@page#1{%
+  \def\absf@temp{#1}%
+  \def\absf@temp@current{current}%
+  \ifx\absf@temp\absf@temp@current
+    \edef\absf@cur@page{\the\c@page}%
+  \else
+    \def\absf@cur@page{#1}%
+  \fi
+}
+\define@key{absfigure}{pos}[t]{\absf@set@pos{#1}}
+
+% Normalize pos value: top→t, bottom→b, pass through otherwise
+\def\absf@set@pos#1{%
+  \def\absf@temp{#1}%
+  \def\absf@temp@top{top}%
+  \def\absf@temp@bottom{bottom}%
+  \ifx\absf@temp\absf@temp@top
+    \def\absf@cur@pos{t}%
+  \else\ifx\absf@temp\absf@temp@bottom
+    \def\absf@cur@pos{b}%
+  \else
+    \def\absf@cur@pos{#1}%
+  \fi\fi
+}
+\define@key{absfigure}{col}[1]{\absf@set@col{#1}}
+
+% Normalize col value: l/left→1, r/right→2, pass through otherwise
+\def\absf@set@col#1{%
+  \def\absf@temp{#1}%
+  \def\absf@temp@left{left}%
+  \def\absf@temp@right{right}%
+  \def\absf@temp@l{l}%
+  \def\absf@temp@r{r}%
+  \ifx\absf@temp\absf@temp@left
+    \def\absf@cur@col{1}%
+  \else\ifx\absf@temp\absf@temp@l
+    \def\absf@cur@col{1}%
+  \else\ifx\absf@temp\absf@temp@right
+    \def\absf@cur@col{2}%
+  \else\ifx\absf@temp\absf@temp@r
+    \def\absf@cur@col{2}%
+  \else
+    \def\absf@cur@col{#1}%
+  \fi\fi\fi\fi
+}
+
+%% ============================================================
+%% Validation helpers
+%% ============================================================
+
+% Validate page key: must be a positive integer or "end".
+% Non-numeric text will cause TeX's own \ifnum error.
+\def\absf@validate@page#1{%
+  \edef\absf@temp{#1}%
+  \def\absf@temp@end{end}%
+  \ifx\absf@temp\absf@temp@end\else
+    \ifnum#1>\z@\relax\else
+      \PackageError{absfigure}%
+        {Invalid page value `#1'}%
+        {The `page' key requires a positive integer or `end'.
+         Values <= 0 are not allowed.}%
+    \fi
+  \fi
+}
+
+% Validate pos key
+\def\absf@validate@pos#1{%
+  \edef\absf@temp{#1}%
+  \def\absf@temp@t{t}%
+  \def\absf@temp@b{b}%
+  \ifx\absf@temp\absf@temp@t\else
+    \ifx\absf@temp\absf@temp@b\else
+      \PackageError{absfigure}%
+        {Invalid pos value `#1'}%
+        {The `pos' key accepts `t' (or `top') and `b' (or `bottom').}%
+    \fi
+  \fi
+}
+
+% Validate col key (for non-starred variant)
+\def\absf@validate@col#1{%
+  \edef\absf@temp{#1}%
+  \def\absf@temp@one{1}%
+  \def\absf@temp@two{2}%
+  \ifx\absf@temp\absf@temp@one\else
+    \ifx\absf@temp\absf@temp@two
+      \if@twocolumn\else
+        \PackageError{absfigure}%
+          {col=2 (right) used in single-column mode}%
+          {You requested col=2/right, but the document is not in
+           \string\twocolumn\space mode. Use col=1 or switch to
+           twocolumn.}%
+      \fi
+    \else
+      \PackageError{absfigure}%
+        {Invalid col value `#1'}%
+        {The `col' key accepts `1'/`l'/`left' and `2'/`r'/`right'.}%
+    \fi
+  \fi
+}
+
+%% ============================================================
+%% Shared float processing
+%% ============================================================
+
+%% \absf@process@float{<type>}{<starred>}{<keys>}
+%   #1 = float type: figure or table
+%   #2 = starred flag: 0 = single-column, 1 = spanning
+%   #3 = key-value options
+\def\absf@process@float#1#2#3{%
+  \def\absf@cur@page{}%
+  \def\absf@cur@pos{t}%
+  \def\absf@temp@isstar{#2}%
+  \def\absf@temp@one{1}%
+  \ifx\absf@temp@isstar\absf@temp@one
+    \def\absf@cur@col{*}%
+  \else
+    \def\absf@cur@col{1}%
+  \fi
+  \setkeys{absfigure}{#3}%
+  \ifx\absf@temp@isstar\absf@temp@one
+    \def\absf@cur@col{*}% force spanning
+  \fi
+  % Default page to current if omitted
+  \ifx\absf@cur@page\empty
+    \edef\absf@cur@page{\the\c@page}%
+  \else
+    \absf@validate@page{\absf@cur@page}%
+  \fi
+  \absf@validate@pos{\absf@cur@pos}%
+  \ifx\absf@temp@isstar\absf@temp@one\else
+    \absf@validate@col{\absf@cur@col}%
+  \fi
+  % Store float data globally
+  \global\advance\absf@count\@ne
+  \edef\absf@curid{\the\absf@count}%
+  \expandafter\xdef\csname absf@page@\absf@curid\endcsname{\absf@cur@page}%
+  \expandafter\xdef\csname absf@pos@\absf@curid\endcsname{\absf@cur@pos}%
+  \expandafter\xdef\csname absf@col@\absf@curid\endcsname{\absf@cur@col}%
+  \expandafter\xdef\csname absf@star@\absf@curid\endcsname{#2}%
+  \expandafter\xdef\csname absf@type@\absf@curid\endcsname{#1}%
+  \global\expandafter\let\csname absf@body@\absf@curid\endcsname\BODY
+  \absf@addtopending{\absf@curid}%
+}
+
+%% ============================================================
+%% Environments: absfigure, absfigure*, abstable, abstable*
+%% ============================================================
+
+\NewEnviron{absfigure}[1][]{\absf@process@float{figure}{0}{#1}}
+\NewEnviron{absfigure*}[1][]{\absf@process@float{figure}{1}{#1}}
+\NewEnviron{abstable}[1][]{\absf@process@float{table}{0}{#1}}
+\NewEnviron{abstable*}[1][]{\absf@process@float{table}{1}{#1}}
+
+%% ============================================================
+%% Pending list management
+%% ============================================================
+
+\def\absf@addtopending#1{%
+  \ifx\absf@pending\empty
+    \xdef\absf@pending{#1}%
+  \else
+    \xdef\absf@pending{\absf@pending,#1}%
+  \fi
+}
+
+\def\absf@remove@from@pending#1{%
+  \def\absf@newpending{}%
+  \expandafter\absf@remove@iter\absf@pending,\absf@stop{#1}%
+  \global\let\absf@pending\absf@newpending
+}
+
+\def\absf@remove@iter#1,#2\absf@stop#3{%
+  \def\absf@temp@a{#1}%
+  \def\absf@temp@b{#3}%
+  \ifx\absf@temp@a\absf@temp@b\else
+    \ifx\absf@newpending\empty
+      \edef\absf@newpending{#1}%
+    \else
+      \edef\absf@newpending{\absf@newpending,#1}%
+    \fi
+  \fi
+  \def\absf@temp@rest{#2}%
+  \ifx\absf@temp@rest\empty\else
+    \absf@remove@iter#2\absf@stop{#3}%
+  \fi
+}
+
+%% ============================================================
+%% Injection logic — called from patched \@startcolumn
+%% ============================================================
+
+\def\absf@inject@figures{%
+  \ifx\absf@pending\empty\else
+    \expandafter\absf@inject@iter\absf@pending,\absf@stop
+  \fi
+}
+
+\def\absf@inject@iter#1,#2\absf@stop{%
+  \absf@try@place{#1}%
+  \def\absf@temp@rest{#2}%
+  \ifx\absf@temp@rest\empty\else
+    \absf@inject@iter#2\absf@stop
+  \fi
+}
+
+\def\absf@try@place#1{%
+  \edef\absf@this@page{\csname absf@page@#1\endcsname}%
+  \edef\absf@this@col{\csname absf@col@#1\endcsname}%
+  \def\absf@temp@end{end}%
+  \ifx\absf@this@page\absf@temp@end\else
+    \ifnum\absf@this@page=\c@page\relax
+      \def\absf@temp@star{*}%
+      \ifx\absf@this@col\absf@temp@star
+        % Spanning figure: place on first column only
+        \if@firstcolumn
+          \absf@place@dblcol{#1}%
+          \absf@remove@from@pending{#1}%
+        \fi
+      \else
+        \ifnum\absf@this@col=\@ne\relax
+          % col=1: place on first column
+          \if@firstcolumn
+            \absf@place@singlecol{#1}%
+            \absf@remove@from@pending{#1}%
+          \fi
+        \else
+          % col=2: place on second column
+          \if@firstcolumn\else
+            \absf@place@singlecol{#1}%
+            \absf@remove@from@pending{#1}%
+          \fi
+        \fi
+      \fi
+    \fi
+  \fi
+}
+
+%% ============================================================
+%% Place a single-column float
+%% ============================================================
+
+\def\absf@place@singlecol#1{%
+  \edef\absf@this@pos{\csname absf@pos@#1\endcsname}%
+  \edef\absf@this@type{\csname absf@type@#1\endcsname}%
+  \@next\@currbox\@freelist{%
+    \global\setbox\@currbox\vbox{%
+      \hsize\columnwidth
+      \edef\@captype{\absf@this@type}%
+      \csname absf@body@#1\endcsname
+    }%
+    \edef\absf@ftype{\csname ftype@\absf@this@type\endcsname}%
+    \def\absf@temp@t{t}%
+    \ifx\absf@this@pos\absf@temp@t
+      \global\count\@currbox=\numexpr \absf@ftype*32 + 2\relax % type + top
+      \global\dp\@currbox\z@
+      \@cons\@toplist\@currbox
+    \else
+      \global\count\@currbox=\numexpr \absf@ftype*32 + 4\relax % type + bottom
+      \global\dp\@currbox\z@
+      \@cons\@botlist\@currbox
+    \fi
+    % Accumulate reduction (applied in \@startcolumn after injection)
+    \global\advance\absf@colreduce\ht\@currbox
+    \global\advance\absf@colreduce\textfloatsep
+  }{\PackageWarning{absfigure}{No free float box for float #1}}%
+  \global\expandafter\let\csname absf@body@#1\endcsname\relax
+}
+
+%% ============================================================
+%% Place a spanning (double-column) float
+%% ============================================================
+
+\def\absf@place@dblcol#1{%
+  \edef\absf@this@pos{\csname absf@pos@#1\endcsname}%
+  \edef\absf@this@type{\csname absf@type@#1\endcsname}%
+  \@next\@currbox\@freelist{%
+    \global\setbox\@currbox\vbox{%
+      \hsize\textwidth
+      \edef\@captype{\absf@this@type}%
+      \csname absf@body@#1\endcsname
+    }%
+    \global\dp\@currbox\@ne sp % 1sp signals double-column float
+    \edef\absf@ftype{\csname ftype@\absf@this@type\endcsname}%
+    \def\absf@temp@t{t}%
+    \ifx\absf@this@pos\absf@temp@t
+      % Top: add to kernel's \@dbltoplist
+      \global\count\@currbox=\numexpr \absf@ftype*32 + 2\relax % type + top
+      \@cons\@dbltoplist\@currbox
+    \else
+      % Bottom: add to our own \absf@dblbotlist (kernel has none)
+      \global\count\@currbox=\numexpr \absf@ftype*32 + 4\relax % type + bottom
+      \@cons\absf@dblbotlist\@currbox
+    \fi
+    % Reduce \@colht directly — this survives \@startcolumn re-entries
+    % because \@startcolumn resets \@colroom from \@colht
+    \global\advance\@colht -\ht\@currbox
+    \global\advance\@colht -\dbltextfloatsep
+    \global\@colroom\@colht
+  }{\PackageWarning{absfigure}{No free float box for float #1}}%
+  \global\expandafter\let\csname absf@body@#1\endcsname\relax
+}
+
+%% ============================================================
+%% Patch \@startcolumn to inject absolute figures
+%% ============================================================
+
+\AtBeginDocument{%
+  \let\absf@orig@startcolumn\@startcolumn
+  %
+  % Patched \@startcolumn:
+  %   1. Reset \@colroom = \@colht  (standard)
+  %   2. Detect new column vs re-entry using page+column identity
+  %   3. On new column: reset reduction, inject figures
+  %   4. On re-entry: skip injection (figures already placed)
+  %   5. Apply stored reduction to \@colroom
+  %   6. Process deferred floats (standard kernel logic)
+  %
+  \def\@startcolumn{%
+    \global\@colroom\@colht
+    \edef\absf@curcolid{\the\c@page-\if@firstcolumn1\else2\fi}%
+    \ifx\absf@curcolid\absf@lastcolid\else
+      \global\absf@colreduce\z@
+      \xdef\absf@lastcolid{\absf@curcolid}%
+      \absf@inject@figures
+    \fi
+    \global\advance\@colroom -\absf@colreduce
+    \@tryfcolumn\@deferlist
+    \if@fcolmade\else
+      \begingroup
+        \let\reserved@b\@deferlist
+        \global\let\@deferlist\@empty
+        \let\@elt\@scolelt
+        \reserved@b
+      \endgroup
+    \fi
+  }%
+  %
+  % Patch \@combinedblfloats to also attach spanning bottom floats.
+  % The kernel only handles \@dbltoplist; we add \absf@dblbotlist
+  % below the combined two-column text.
+  %
+  \let\absf@orig@combinedblfloats\@combinedblfloats
+  \def\@combinedblfloats{%
+    \absf@orig@combinedblfloats
+    \absf@combine@dblbot
+  }%
+}
+
+% Attach spanning bottom floats below the output box.
+% Mirrors \@combinedblfloats but places floats at the bottom.
+\def\absf@combine@dblbot{%
+  \ifx\absf@dblbotlist\@empty\else
+    \setbox\@tempboxa\vbox{}%
+    \let\@elt\@comdblflelt
+    \absf@dblbotlist
+    \let\@elt\relax
+    \xdef\@freelist{\@freelist\absf@dblbotlist}%
+    \global\let\absf@dblbotlist\@empty
+    \setbox\@outputbox\vbox to\textheight{%
+      \unvbox\@outputbox
+      \vskip\dbltextfloatsep
+      \dblfigrule
+      \vskip-\dblfloatsep
+      \unvbox\@tempboxa
+    }%
+  \fi
+}
+
+%% ============================================================
+%% page=end support
+%% ============================================================
+
+\def\absf@handle@end@figures{%
+  \absf@has@end@figuresfalse
+  \ifx\absf@pending\empty\else
+    \expandafter\absf@check@end@iter\absf@pending,\absf@stop
+  \fi
+  \ifabsf@has@end@figures
+    \clearpage
+    \absf@place@end@figures
+  \fi
+}
+
+\newif\ifabsf@has@end@figures
+\def\absf@check@end@iter#1,#2\absf@stop{%
+  \edef\absf@temp{\csname absf@page@#1\endcsname}%
+  \def\absf@temp@end{end}%
+  \ifx\absf@temp\absf@temp@end
+    \absf@has@end@figurestrue
+  \fi
+  \def\absf@temp@rest{#2}%
+  \ifx\absf@temp@rest\empty\else
+    \absf@check@end@iter#2\absf@stop
+  \fi
+}
+
+\def\absf@place@end@figures{%
+  \ifx\absf@pending\empty\else
+    \expandafter\absf@place@end@iter\absf@pending,\absf@stop
+  \fi
+}
+
+\def\absf@place@end@iter#1,#2\absf@stop{%
+  \edef\absf@temp{\csname absf@page@#1\endcsname}%
+  \def\absf@temp@end{end}%
+  \ifx\absf@temp\absf@temp@end
+    \edef\absf@this@type{\csname absf@type@#1\endcsname}%
+    \edef\absf@this@star{\csname absf@star@#1\endcsname}%
+    \def\absf@temp@one{1}%
+    \ifx\absf@this@star\absf@temp@one
+      \edef\absf@temp@env{\absf@this@type*}%
+    \else
+      \let\absf@temp@env\absf@this@type
+    \fi
+    \expandafter\begin\expandafter{\absf@temp@env}[t]%
+      \csname absf@body@#1\endcsname
+    \expandafter\end\expandafter{\absf@temp@env}%
+    \absf@remove@from@pending{#1}%
+    \global\expandafter\let\csname absf@body@#1\endcsname\relax
+  \fi
+  \def\absf@temp@rest{#2}%
+  \ifx\absf@temp@rest\empty\else
+    \absf@place@end@iter#2\absf@stop
+  \fi
+}
+
+%% ============================================================
+%% End-of-document: handle page=end, then error on unplaced
+%% ============================================================
+
+\AtEndDocument{%
+  \absf@handle@end@figures
+  \clearpage
+  \absf@error@unplaced
+}
+
+\def\absf@error@unplaced{%
+  \ifx\absf@pending\empty\else
+    \expandafter\absf@error@iter\absf@pending,\absf@stop
+  \fi
+}
+
+\def\absf@error@iter#1,#2\absf@stop{%
+  \PackageError{absfigure}%
+    {Float #1 (\csname absf@type@#1\endcsname, target
+     page=\csname absf@page@#1\endcsname,
+     col=\csname absf@col@#1\endcsname) was never placed}%
+    {The target page does not exist in this document.
+     Check that the page number is correct and that the
+     float is defined before that page in the source.}%
+  \def\absf@temp@rest{#2}%
+  \ifx\absf@temp@rest\empty\else
+    \absf@error@iter#2\absf@stop
+  \fi
+}
+
+%% ============================================================
+\endinput

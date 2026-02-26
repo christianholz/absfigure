@@ -1,0 +1,501 @@
+%%
+%% absfigure.tex
+%% Documentation for the absfigure package
+%%
+%% Copyright (c) 2026 Christian Holz
+%% Released under the MIT License. See LICENSE for details.
+%%
+
+\documentclass[a4paper]{article}
+
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\definecolor{notes}{rgb}{.75, .3, .3}%
+\definecolor{keycolor}{rgb}{.0, .3, .6}%
+\definecolor{examplebg}{gray}{.93}%
+
+\hypersetup{%
+  colorlinks=true,
+  linkcolor=notes,
+  urlcolor=keycolor
+}
+
+\newcommand\key[1]{\textcolor{keycolor}{\texttt{#1}}}
+\newcommand\pkg[1]{\textsf{#1}}
+\newcommand\env[1]{\texttt{#1}}
+\newcommand\cmd[1]{\texttt{\string#1}}
+\newcommand\meta[1]{\ensuremath{\langle}\textit{#1}\ensuremath{\rangle}}
+
+\makeatletter
+\newenvironment{warningblock}
+  {\list{}{}%
+   \item[{\sffamily\bfseries\color{notes}WARNING}]\ignorespaces}
+  {\endlist}
+\newenvironment{noteblock}
+  {\list{}{}%
+   \item[{\sffamily\bfseries\color{notes}NOTE}]\ignorespaces}
+  {\endlist}
+\newsavebox{\absf@exbox}
+\newenvironment{exampleblock}
+  {\par\medskip
+   \noindent{\sffamily\bfseries\color{keycolor}EXAMPLE}\par\nobreak\smallskip
+   \begin{lrbox}{\absf@exbox}%
+   \begin{minipage}{\dimexpr\linewidth-16pt\relax}}
+  {\end{minipage}%
+   \end{lrbox}%
+   \begingroup\setlength{\fboxsep}{8pt}%
+   \noindent\colorbox{examplebg}{\usebox{\absf@exbox}}%
+   \endgroup\par\medskip}
+\makeatother
+
+\addtolength{\topmargin}{-2pc}
+\addtolength{\textwidth}{4pc}
+\addtolength{\oddsidemargin}{-2pc}
+\addtolength{\textheight}{5pc}
+
+\title{Absolute figure and table placement\\with the\\\pkg{absfigure} package}
+
+\author{Christian Holz}
+
+\date{Version 0.1\\2026/02/25}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\bigskip
+
+\begin{noteblock}
+  This is version~0.1 of \pkg{absfigure}. The package is functional
+  but should be considered experimental. Please report any issues.
+\end{noteblock}
+
+%% ============================================================
+\section{Introduction}
+%% ============================================================
+
+\LaTeX's float mechanism (\verb|\begin{figure}[t/b/h/p]|) provides
+only \emph{relative} placement hints. There is no built-in way to say
+``put this figure at the bottom of page~6, column~2.'' The
+\pkg{absfigure} package provides exactly that capability for both
+figures and tables through a simple key-value interface.
+
+Floats placed with \pkg{absfigure} integrate with \LaTeX's page
+builder: text correctly reflows around them, \cmd{\caption},
+\cmd{\label}, and \cmd{\ref} all work normally, and ordinary floats
+continue to function alongside absolute ones. Both
+\cmd{\listoffigures} and \cmd{\listoftables} pick up the placed
+floats automatically.
+
+\subsection{Requirements}
+
+\begin{itemize}
+\item \LaTeXe{} (1995/12/01 or later)
+\item The \pkg{keyval} package (part of the \pkg{graphics} bundle)
+\item The \pkg{environ} package (available on CTAN)
+\end{itemize}
+
+\subsection{Loading the package}
+
+\begin{verbatim}
+\usepackage{absfigure}
+\end{verbatim}
+
+No package options are currently defined.
+
+%% ============================================================
+\section{User interface}
+%% ============================================================
+
+\subsection{The \env{absfigure} environment}
+
+\begin{quote}
+\cmd{\begin}\verb|{absfigure}{|\meta{keys}\verb|}|\\
+\quad\meta{figure body}\\
+\cmd{\end}\verb|{absfigure}|
+\end{quote}
+
+Places a single-column figure on a specific page and column. The
+\meta{figure body} may contain \cmd{\includegraphics},
+\cmd{\caption}, \cmd{\label}, and any other content you would
+normally put inside a \LaTeX{} \env{figure} environment.
+
+\begin{exampleblock}
+\begin{verbatim}
+\begin{absfigure}{page=6, pos=b, col=2}
+  \includegraphics[width=\columnwidth]{fig.pdf}
+  \caption{My figure}
+  \label{fig:myfig}
+\end{absfigure}
+\end{verbatim}
+\end{exampleblock}
+
+\subsection{The \env{absfigure*} environment}
+
+\begin{quote}
+\cmd{\begin}\verb|{absfigure*}{|\meta{keys}\verb|}|\\
+\quad\meta{figure body}\\
+\cmd{\end}\verb|{absfigure*}|
+\end{quote}
+
+Places a spanning (double-column) figure, analogous to \LaTeX's
+\env{figure*}. The \key{col} key is ignored for this environment
+since the figure spans both columns.
+
+\begin{exampleblock}
+\begin{verbatim}
+\begin{absfigure*}{page=3, pos=t}
+  \includegraphics[width=\textwidth]{wide.pdf}
+  \caption{A wide figure}
+\end{absfigure*}
+\end{verbatim}
+\end{exampleblock}
+
+\subsection{The \env{abstable} environment}
+
+\begin{quote}
+\cmd{\begin}\verb|{abstable}{|\meta{keys}\verb|}|\\
+\quad\meta{table body}\\
+\cmd{\end}\verb|{abstable}|
+\end{quote}
+
+Places a single-column table on a specific page and column. The
+\meta{table body} may contain \env{tabular}, \cmd{\caption},
+\cmd{\label}, and any other content you would normally put inside a
+\LaTeX{} \env{table} environment. The same keys (\key{page},
+\key{pos}, \key{col}) are accepted.
+
+\begin{exampleblock}
+\begin{verbatim}
+\begin{abstable}{page=4, pos=t, col=1}
+  \centering
+  \caption{My table}
+  \label{tab:mytab}
+  \begin{tabular}{lcc}
+    \hline
+    Item  & Value & Unit \\
+    \hline
+    Alpha & 1.0   & m/s  \\
+    \hline
+  \end{tabular}
+\end{abstable}
+\end{verbatim}
+\end{exampleblock}
+
+\subsection{The \env{abstable*} environment}
+
+\begin{quote}
+\cmd{\begin}\verb|{abstable*}{|\meta{keys}\verb|}|\\
+\quad\meta{table body}\\
+\cmd{\end}\verb|{abstable*}|
+\end{quote}
+
+Places a spanning (double-column) table, analogous to \LaTeX's
+\env{table*}. The \key{col} key is ignored for this environment
+since the table spans both columns.
+
+\begin{exampleblock}
+\begin{verbatim}
+\begin{abstable*}{page=5, pos=b}
+  \centering
+  \caption{A wide table}
+  \begin{tabular}{lccccc}
+    \hline
+    Exp & T1 & T2 & T3 & Mean & Std \\
+    \hline
+    A   & 4.2 & 4.5 & 4.1 & 4.27 & 0.21 \\
+    \hline
+  \end{tabular}
+\end{abstable*}
+\end{verbatim}
+\end{exampleblock}
+
+%% ============================================================
+\section{Keys}
+%% ============================================================
+
+\subsection{\key{page}}
+
+\begin{quote}
+\key{page=}\meta{integer} --- Target page number (positive integer).\\
+\key{page=current} --- Place on the page currently being built (default).\\
+\key{page=end} --- Place on an extra page appended after the document.
+\end{quote}
+
+If \key{page} is omitted, it defaults to \key{current} --- the float
+is placed on the page where the environment appears in the source.
+
+An error is raised if \key{page} is zero, negative, or non-numeric
+(other than the special values \key{current} and \key{end}).
+
+If the target page number exceeds the number of pages in the document,
+the float is never placed and a hard error is raised at the end of the
+\LaTeX{} run.
+
+\begin{warningblock}
+  When using an explicit page number, the float must be defined in the
+  source \emph{before} its target page is shipped out. In practice,
+  group such floats right after \verb|\begin{document}|. With
+  \key{page=current} (or the default), the float is placed on the
+  page being built where the environment appears, so ordering is not
+  a concern.
+\end{warningblock}
+
+\subsection{\key{pos}}
+
+\begin{quote}
+\key{pos=t} --- Place at the top of the page (default).\\
+\key{pos=b} --- Place at the bottom of the page.
+\end{quote}
+
+The aliases \key{pos=top} and \key{pos=bottom} are also accepted.
+
+An error is raised if \key{pos} is set to anything other than
+\key{t}/\key{top} or~\key{b}/\key{bottom}.
+
+\begin{noteblock}
+  The \LaTeX{} kernel does not natively support bottom-placed spanning
+  floats (there is no \verb|\@dblbotlist|). The \pkg{absfigure} package
+  implements its own spanning-bottom mechanism, so \key{pos=b} works
+  with all four environments (\env{absfigure}, \env{absfigure*},
+  \env{abstable}, \env{abstable*}).
+\end{noteblock}
+
+\subsection{\key{col}}
+
+\begin{quote}
+\key{col=1} --- Place in the first (left) column (default).\\
+\key{col=2} --- Place in the second (right) column.
+\end{quote}
+
+The aliases \key{col=l}/\key{col=left} and \key{col=r}/\key{col=right}
+are also accepted.
+
+This key is only meaningful in \verb|\twocolumn| mode. In single-column
+documents, \key{col=2} (or \key{col=right}) raises an error.
+
+For starred environments (\env{absfigure*}, \env{abstable*}), this key
+is silently ignored (the float always spans both columns).
+
+An error is raised if \key{col} is set to anything other than
+\key{1}/\key{left} or~\key{2}/\key{right}.
+
+%% ============================================================
+\section{Captions, labels, and cross-references}
+%% ============================================================
+
+\cmd{\caption} and \cmd{\label} work normally inside all four
+environments. They are executed at \emph{placement} time (during the
+output routine), so:
+
+\begin{itemize}
+\item The figure/table counter is incremented in the order floats are
+  actually placed, not the order they appear in the source.
+\item \cmd{\ref} and \cmd{\pageref} resolve correctly after two
+  compilations (standard \LaTeX{} behaviour for cross-references).
+\item Figures appear in \cmd{\listoffigures} and tables in
+  \cmd{\listoftables} automatically.
+\end{itemize}
+
+%% ============================================================
+\section{Error handling}
+%% ============================================================
+
+The package performs validation on all keys and issues errors or
+warnings as appropriate:
+
+\begin{description}
+\item[\key{page} omitted] %
+  Defaults to \key{current} (the page being built). No error.
+
+\item[\key{page} is zero, negative, or non-numeric] %
+  \textbf{Error:} \texttt{Invalid page value `\meta{value}'}.
+  The \key{page} key requires a positive integer, \key{current},
+  or \key{end}.
+
+\item[\key{page} exceeds total pages] %
+  \textbf{Error} at end of run:
+  \texttt{Float N (figure/table, target page=X) was never placed}.
+  Compilation is interrupted; no float is silently dropped.
+
+\item[\key{page=current}] %
+  Valid. Resolves to the page number being built at definition time.
+
+\item[\key{page=end}] %
+  Valid. An extra page is appended after the document's last page,
+  and the float is placed there.
+
+\item[\key{pos} is not \key{t}/\key{top} or \key{b}/\key{bottom}] %
+  \textbf{Error:} \texttt{Invalid pos value `\meta{value}'}.
+
+\item[\key{col} is not \key{1}/\key{l}/\key{left} or \key{2}/\key{r}/\key{right}] %
+  \textbf{Error:} \texttt{Invalid col value `\meta{value}'}.
+
+\item[\key{col=2} or \key{col=right} in single-column mode] %
+  \textbf{Error:} \texttt{col=2 (right) used in single-column mode}.
+\end{description}
+
+%% ============================================================
+\section{How it works}
+%% ============================================================
+
+Understanding the internal mechanism may be helpful for advanced users
+and for debugging.
+
+\subsection{Core mechanism}
+
+\LaTeX{} calls \verb|\@startcolumn| at the start of every column (and
+page). The package patches this command to inject absolute figures
+\emph{before} deferred floats are processed:
+
+\begin{verbatim}
+\@startcolumn (patched):
+  1. \global\@colroom\@colht      % reset height
+  2. detect new column vs re-entry
+  3. \absf@inject@figures          % OUR HOOK
+  4. \@colroom -= \absf@colreduce  % apply reduction
+  5. \@tryfcolumn / deferred       % original logic
+\end{verbatim}
+
+\subsection{Re-entry handling}
+
+The kernel may call \verb|\@startcolumn| multiple times for the same
+column (via \verb|\@whilesw\if@fcolmade|). Each re-entry resets
+\verb|\@colroom|, undoing any reductions. The package tracks the
+current column identity (page number + column flag) and stores the
+cumulative space reduction in a dimension register
+(\verb|\absf@colreduce|). On re-entry, injection is skipped but the
+stored reduction is re-applied.
+
+\subsection{Injection logic}
+
+For each pending float, the package checks whether the current
+page counter (\verb|\c@page|) matches the target page and whether
+\verb|\if@firstcolumn| matches the target column. On a match:
+
+\begin{enumerate}
+\item A float box register is allocated from \verb|\@freelist|.
+\item The captured body tokens are typeset inside it (with
+  \verb|\@captype| set to \texttt{figure} or \texttt{table}
+  so \cmd{\caption}/\cmd{\label} work and counters increment
+  correctly).
+\item \verb|\count\@currbox| is set to encode the float type and
+  placement using the kernel's \verb|\ftype@|\meta{type} multiplier.
+\item The box is added to \verb|\@toplist| or \verb|\@botlist| and
+  the space reduction is accumulated in \verb|\absf@colreduce|.
+\end{enumerate}
+
+For spanning floats (\env{absfigure*}, \env{abstable*}), the box is
+added to \verb|\@dbltoplist| and \verb|\@colht| is reduced instead
+(this reduction naturally survives re-entries since
+\verb|\@startcolumn| resets \verb|\@colroom| from \verb|\@colht|).
+
+\subsection{Why text reflows correctly}
+
+Reducing \verb|\@colroom| inside \verb|\@startcolumn| propagates to
+\verb|\vsize|, which the \TeX{} page builder uses to determine where
+to break the column. Less available height means less text on the
+page, leaving room for the figure.
+
+%% ============================================================
+\section{Limitations and known issues}
+%% ============================================================
+
+\begin{itemize}
+\item Floats must be defined in the source \emph{before} their
+  target page. The recommended practice is to group all
+  \env{absfigure}/\env{abstable} environments right after
+  \verb|\begin{document}|.
+
+\item If many absolute floats target the same page, the available
+  text height may become negative and \TeX{} will produce an
+  overfull vbox. Plan float sizes accordingly.
+
+\item Float numbering follows placement order, not source order.
+  If you define figure~A (targeting page~5) before figure~B
+  (targeting page~2), figure~B will get a lower number. The same
+  applies to tables.
+
+\item Cross-references (\cmd{\ref}, \cmd{\pageref}) require two
+  compilations to resolve, as is standard for \LaTeX.
+
+\item The package has not been tested with the \pkg{multicol}
+  package. It is designed for \LaTeX's built-in \verb|\twocolumn|
+  mechanism.
+\end{itemize}
+
+%% ============================================================
+\section{Complete example}
+%% ============================================================
+
+\begin{verbatim}
+\documentclass[twocolumn]{article}
+\usepackage{graphicx}
+\usepackage{lipsum}
+\usepackage{absfigure}
+
+\begin{document}
+
+% Define figures up front
+\begin{absfigure}{page=2, pos=t, col=1}
+  \centering
+  \includegraphics[width=\columnwidth]{fig1.pdf}
+  \caption{Top of page 2, column 1}
+  \label{fig:one}
+\end{absfigure}
+
+\begin{absfigure*}{page=3, pos=t}
+  \centering
+  \includegraphics[width=\textwidth]{wide.pdf}
+  \caption{Spanning figure on page 3}
+  \label{fig:wide}
+\end{absfigure*}
+
+% A table on page 2, bottom of column 2
+\begin{abstable}{page=2, pos=b, col=2}
+  \centering
+  \caption{Results}
+  \label{tab:results}
+  \begin{tabular}{lcc}
+    \hline
+    Method & Accuracy & F1 \\
+    \hline
+    Ours   & 94.2     & 0.91 \\
+    \hline
+  \end{tabular}
+\end{abstable}
+
+\begin{absfigure}{page=end}
+  \centering
+  \includegraphics[width=\columnwidth]{extra.pdf}
+  \caption{Appended at the end}
+  \label{fig:extra}
+\end{absfigure}
+
+See Figure~\ref{fig:one}, Table~\ref{tab:results},
+and Figure~\ref{fig:extra}.
+
+\lipsum[1-30]
+
+\end{document}
+\end{verbatim}
+
+%% ============================================================
+\section{Version history}
+%% ============================================================
+
+\begin{description}
+\item[v0.1 (2026/02/25)] Initial release.
+  \begin{itemize}
+  \item \env{absfigure}, \env{absfigure*}, \env{abstable}, and \env{abstable*} environments
+  \item Keys: \key{page}, \key{pos}, \key{col}
+  \item \key{page=current} (default when \key{page} omitted)
+  \item \key{page=end} support
+  \item Validation of all keys with meaningful error messages
+  \item End-of-document warnings for unplaced figures
+  \end{itemize}
+\end{description}
+
+\end{document}

@@ -1,0 +1,233 @@
+\documentclass[twocolumn]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{absfigure}
+
+% Filler paragraph command (lipsum replacement)
+\newcommand{\fillerpar}{%
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+  eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+  ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+  aliquip ex ea commodo consequat. Duis aute irure dolor in
+  reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+  pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+  culpa qui officia deserunt mollit anim id est laborum.
+
+}
+
+\begin{document}
+
+\title{Test Document for \textsf{absfigure}}
+\author{Test}
+\maketitle
+\listoffigures
+\listoftables
+
+%% ============================================================
+%% Define absolute figures up front (before their target pages)
+%% ============================================================
+
+% Figure on page 2, top of column 1
+\begin{absfigure}{page=2, pos=t, col=1}
+  \centering
+  \rule{0.9\columnwidth}{3cm}% placeholder for \includegraphics
+  \caption{Absolute figure: page~2, top, column~1}
+  \label{fig:p2t1}
+\end{absfigure}
+
+% Figure on page 2, bottom of column 2 (using left/right/top/bottom aliases)
+\begin{absfigure}{page=2, pos=bottom, col=right}
+  \centering
+  \rule{0.9\columnwidth}{2.5cm}
+  \caption{Absolute figure: page~2, bottom, right}
+  \label{fig:p2b2}
+\end{absfigure}
+
+% Spanning figure on page 3, top
+\begin{absfigure*}{page=3, pos=t}
+  \centering
+  \rule{0.9\textwidth}{4cm}
+  \caption{Spanning absolute figure: page~3, top}
+  \label{fig:p3span}
+\end{absfigure*}
+
+%% ============================================================
+%% Stacking test: two figures targeting the same page/col/pos.
+%% The first-defined figure should have precedence (appear closer
+%% to the bottom edge, matching standard figure[b] stacking).
+%% ============================================================
+
+% First bottom figure on page 4, col 2 — should be closest to text
+\begin{absfigure}{page=4, pos=b, col=2}
+  \centering
+  \rule{0.9\columnwidth}{2cm}
+  \caption{Bottom stack A (defined first) --- page~4, col~2}
+  \label{fig:stackA}
+\end{absfigure}
+
+% Second bottom figure on page 4, col 2 — should stack below A
+\begin{absfigure}{page=4, pos=b, col=2}
+  \centering
+  \rule{0.9\columnwidth}{1.5cm}
+  \caption{Bottom stack B (defined second) --- page~4, col~2}
+  \label{fig:stackB}
+\end{absfigure}
+
+% Two top figures on the same page/col to test top stacking too
+\begin{absfigure}{page=4, pos=t, col=1}
+  \centering
+  \rule{0.9\columnwidth}{2cm}
+  \caption{Top stack A (defined first) --- page~4, col~1}
+  \label{fig:topA}
+\end{absfigure}
+
+\begin{absfigure}{page=4, pos=t, col=1}
+  \centering
+  \rule{0.9\columnwidth}{1.5cm}
+  \caption{Top stack B (defined second) --- page~4, col~1}
+  \label{fig:topB}
+\end{absfigure}
+
+% Spanning figure at bottom of page 3
+\begin{absfigure*}{page=3, pos=bottom}
+  \centering
+  \rule{0.9\textwidth}{3cm}
+  \caption{Spanning absolute figure: page~3, bottom}
+  \label{fig:p3spanbot}
+\end{absfigure*}
+
+% Figure placed on the last page via page=end
+\begin{absfigure}{page=end}
+  \centering
+  \rule{0.9\columnwidth}{3cm}
+  \caption{Figure placed at the end of the document}
+  \label{fig:end}
+\end{absfigure}
+
+%% ============================================================
+%% Table tests (abstable and abstable*)
+%% ============================================================
+
+% Table on page 2, bottom of column 1
+\begin{abstable}{page=2, pos=b, col=1}
+  \centering
+  \caption{Absolute table: page~2, bottom, column~1}
+  \label{tab:p2b1}
+  \begin{tabular}{lcc}
+    \hline
+    Item & Value & Unit \\
+    \hline
+    Alpha & 1.0 & m/s \\
+    Beta  & 2.5 & m/s \\
+    \hline
+  \end{tabular}
+\end{abstable}
+
+% Spanning table on page 3, top
+\begin{abstable*}{page=3, pos=t}
+  \centering
+  \caption{Spanning absolute table: page~3, top}
+  \label{tab:p3span}
+  \begin{tabular}{lccccc}
+    \hline
+    Experiment & Trial~1 & Trial~2 & Trial~3 & Mean & Std \\
+    \hline
+    Control    & 4.2     & 4.5     & 4.1     & 4.27 & 0.21 \\
+    Treatment  & 6.1     & 5.8     & 6.3     & 6.07 & 0.25 \\
+    \hline
+  \end{tabular}
+\end{abstable*}
+
+% Table placed at the end via page=end
+\begin{abstable}{page=end}
+  \centering
+  \caption{Table placed at the end of the document}
+  \label{tab:end}
+  \begin{tabular}{lr}
+    \hline
+    Category & Count \\
+    \hline
+    Placed   & 100\% \\
+    \hline
+  \end{tabular}
+\end{abstable}
+
+%% ============================================================
+%% page=current test: places on whatever page is being built
+%% when this code is processed (should be page 1)
+%% ============================================================
+
+\begin{absfigure}{page=current, pos=b, col=2}
+  \centering
+  \rule{0.9\columnwidth}{2cm}
+  \caption{Figure via page=current (should be page~1)}
+  \label{fig:current}
+\end{absfigure}
+
+% Default page (omitted = current page, should also be page 1)
+\begin{absfigure}{pos=t, col=2}
+  \centering
+  \rule{0.9\columnwidth}{1.5cm}
+  \caption{Figure with default page (should be page~1)}
+  \label{fig:default}
+\end{absfigure}
+
+%% ============================================================
+%% Normal figure (should still work alongside absolute ones)
+%% ============================================================
+
+\begin{figure}[t]
+  \centering
+  \rule{0.9\columnwidth}{2cm}
+  \caption{A normal LaTeX float figure}
+  \label{fig:normal}
+\end{figure}
+
+%% ============================================================
+%% Cross-references (will resolve after 2 compilations)
+%% ============================================================
+
+\section{Introduction}
+
+This document tests the \textsf{absfigure} package.
+See Figure~\ref{fig:p2t1} on page~\pageref{fig:p2t1},
+Figure~\ref{fig:p2b2} on page~\pageref{fig:p2b2},
+Figure~\ref{fig:p3span} on page~\pageref{fig:p3span},
+Figure~\ref{fig:p3spanbot} on page~\pageref{fig:p3spanbot},
+Figure~\ref{fig:end} on page~\pageref{fig:end},
+Figure~\ref{fig:current} on page~\pageref{fig:current},
+and Figure~\ref{fig:default} on page~\pageref{fig:default}.
+The normal float is Figure~\ref{fig:normal}.
+
+Table tests:
+Table~\ref{tab:p2b1} on page~\pageref{tab:p2b1},
+Table~\ref{tab:p3span} on page~\pageref{tab:p3span},
+and Table~\ref{tab:end} on page~\pageref{tab:end}.
+
+Stacking test (page~4): bottom col~2 has
+Figures~\ref{fig:stackA} and~\ref{fig:stackB};
+top col~1 has Figures~\ref{fig:topA} and~\ref{fig:topB}.
+
+%% ============================================================
+%% Filler text to generate multiple pages
+%% ============================================================
+
+\fillerpar \fillerpar \fillerpar \fillerpar
+\fillerpar \fillerpar \fillerpar \fillerpar
+
+\section{More Content}
+
+\fillerpar \fillerpar \fillerpar \fillerpar
+\fillerpar \fillerpar \fillerpar \fillerpar
+
+\section{Even More Content}
+
+\fillerpar \fillerpar \fillerpar \fillerpar
+\fillerpar \fillerpar \fillerpar \fillerpar
+
+\section{Final Section}
+
+\fillerpar \fillerpar \fillerpar \fillerpar
+\fillerpar \fillerpar \fillerpar \fillerpar
+
+\end{document}
