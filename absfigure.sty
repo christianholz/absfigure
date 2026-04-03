@@ -6,10 +6,12 @@
 %% Released under the MIT License. See LICENSE for details.
 %%
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
-\ProvidesPackage{absfigure}[2026/02/25 v0.1 Absolute figure and table placement]
+\ProvidesPackage{absfigure}[2026-04-03 v0.2 Absolute figure and table placement]
 
 \RequirePackage{keyval}
 \RequirePackage{environ}
+
+\newwrite\absf@stream
 
 %% ============================================================
 %% Storage
@@ -30,6 +32,8 @@
 % the stored reduction.
 \def\absf@lastcolid{}
 \newdimen\absf@colreduce
+\newcount\absf@injectpass
+\absf@injectpass=\z@
 
 % Our own spanning-bottom float list (the kernel has no \@dblbotlist)
 \global\let\absf@dblbotlist\@empty
@@ -41,6 +45,11 @@
 \def\absf@cur@page{}
 \def\absf@cur@pos{t}
 \def\absf@cur@col{1}
+
+\newif\ifabsf@placed
+
+\def\absf@cachefile{\jobname.absf}
+\def\absf@endbox{\par\vskip\z@skip}
 
 \define@key{absfigure}{page}{\absf@set@page{#1}}
 
@@ -186,8 +195,25 @@
   \expandafter\xdef\csname absf@col@\absf@curid\endcsname{\absf@cur@col}%
   \expandafter\xdef\csname absf@star@\absf@curid\endcsname{#2}%
   \expandafter\xdef\csname absf@type@\absf@curid\endcsname{#1}%
+  \expandafter\xdef\csname absf@declpage@\absf@curid\endcsname{\the\c@page}%
+  \if@twocolumn
+    \if@firstcolumn
+      \expandafter\xdef\csname absf@declcol@\absf@curid\endcsname{1}%
+    \else
+      \expandafter\xdef\csname absf@declcol@\absf@curid\endcsname{2}%
+    \fi
+  \else
+    \expandafter\xdef\csname absf@declcol@\absf@curid\endcsname{1}%
+  \fi
   \global\expandafter\let\csname absf@body@\absf@curid\endcsname\BODY
-  \absf@addtopending{\absf@curid}%
+  \absf@write@record{\absf@curid}{#1}{#2}%
+  \absf@placedfalse
+  \expandafter\ifx\csname absf@cached@\absf@curid\endcsname\relax
+    \absf@try@place@current{\absf@curid}%
+    \ifabsf@placed\else
+      \absf@addtopending{\absf@curid}%
+    \fi
+  \fi
 }
 
 %% ============================================================
@@ -233,12 +259,131 @@
   \fi
 }
 
+\def\absf@begin@pass{%
+  \global\advance\absf@injectpass\@ne
+  \xdef\absf@currentpass{\the\absf@injectpass}%
+}
+
+\def\absf@make@slotcs#1{%
+  \edef\absf@slotcs{absf@blocked@\csname absf@page@#1\endcsname.\csname absf@col@#1\endcsname.\csname absf@pos@#1\endcsname}%
+}
+
+\def\absf@ifslotblocked#1{%
+  \absf@make@slotcs{#1}%
+  \expandafter\ifx\csname\absf@slotcs\endcsname\absf@currentpass
+    \expandafter\@firstoftwo
+  \else
+    \expandafter\@secondoftwo
+  \fi
+}
+
+\def\absf@block@slot#1{%
+  \absf@make@slotcs{#1}%
+  \expandafter\xdef\csname\absf@slotcs\endcsname{\absf@currentpass}%
+}
+
+\long\def\absf@restorefloat#1#2#3#4#5#6#7#8#9{%
+  \expandafter\xdef\csname absf@page@#1\endcsname{#2}%
+  \expandafter\xdef\csname absf@pos@#1\endcsname{#3}%
+  \expandafter\xdef\csname absf@col@#1\endcsname{#4}%
+  \expandafter\xdef\csname absf@star@#1\endcsname{#5}%
+  \expandafter\xdef\csname absf@type@#1\endcsname{#6}%
+  \expandafter\xdef\csname absf@declpage@#1\endcsname{#7}%
+  \expandafter\xdef\csname absf@declcol@#1\endcsname{#8}%
+  \global\expandafter\long\expandafter\def\csname absf@body@#1\endcsname{#9}%
+  \expandafter\gdef\csname absf@cached@#1\endcsname{1}%
+  \absf@addtopending{#1}%
+}
+
+\def\absf@write@record#1#2#3{%
+  \begingroup
+    \if@twocolumn
+      \if@firstcolumn
+        \def\absf@declcol{1}%
+      \else
+        \def\absf@declcol{2}%
+      \fi
+    \else
+      \def\absf@declcol{1}%
+    \fi
+    \immediate\write\absf@stream{%
+      \string\absf@restorefloat
+        {#1}%
+        {\csname absf@page@#1\endcsname}%
+        {\csname absf@pos@#1\endcsname}%
+        {\csname absf@col@#1\endcsname}%
+        {#3}%
+        {#2}%
+        {\the\c@page}%
+        {\absf@declcol}%
+        {\unexpanded\expandafter{\BODY}}%
+    }%
+  \endgroup
+}
+
+\def\absf@get@currentcol{%
+  \if@twocolumn
+    \if@firstcolumn
+      \def\absf@currentcol{1}%
+    \else
+      \def\absf@currentcol{2}%
+    \fi
+  \else
+    \def\absf@currentcol{1}%
+  \fi
+}
+
+\def\absf@reserve@singlecol#1{%
+  \dimen@\ht#1%
+  \advance\dimen@\textfloatsep
+  \global\advance\@colroom-\dimen@
+  \enlargethispage{-\dimen@}%
+}
+
+\def\absf@reserve@dblcol#1{%
+  \dimen@\ht#1%
+  \advance\dimen@\dbltextfloatsep
+  \enlargethispage{-\dimen@}%
+}
+
+\def\absf@try@place@current#1{%
+  \edef\absf@this@page{\csname absf@page@#1\endcsname}%
+  \def\absf@temp@end{end}%
+  \ifx\absf@this@page\absf@temp@end\else
+    \ifnum\absf@this@page=\c@page\relax
+      \edef\absf@this@col{\csname absf@col@#1\endcsname}%
+      \def\absf@temp@star{*}%
+      \ifx\absf@this@col\absf@temp@star
+        \if@twocolumn
+          \if@firstcolumn
+            \absf@placedfalse
+            \absf@place@dblcol{#1}%
+            \ifabsf@placed
+              \absf@reserve@dblcol\@currbox
+            \fi
+          \fi
+        \fi
+      \else
+        \absf@get@currentcol
+        \ifx\absf@this@col\absf@currentcol
+          \absf@placedfalse
+          \absf@place@singlecol{#1}%
+          \ifabsf@placed
+            \absf@reserve@singlecol\@currbox
+          \fi
+        \fi
+      \fi
+    \fi
+  \fi
+}
+
 %% ============================================================
 %% Injection logic — called from patched \@startcolumn
 %% ============================================================
 
 \def\absf@inject@figures{%
   \ifx\absf@pending\empty\else
+    \absf@begin@pass
     \expandafter\absf@inject@iter\absf@pending,\absf@stop
   \fi
 }
@@ -251,6 +396,43 @@
   \fi
 }
 
+\def\absf@inject@dblfigures{%
+  \ifx\absf@pending\empty\else
+    \absf@begin@pass
+    \expandafter\absf@inject@dbliter\absf@pending,\absf@stop
+  \fi
+}
+
+\def\absf@inject@dbliter#1,#2\absf@stop{%
+  \absf@try@place@dbl{#1}%
+  \def\absf@temp@rest{#2}%
+  \ifx\absf@temp@rest\empty\else
+    \absf@inject@dbliter#2\absf@stop
+  \fi
+}
+
+\def\absf@try@place@dbl#1{%
+  \edef\absf@this@page{\csname absf@page@#1\endcsname}%
+  \edef\absf@this@col{\csname absf@col@#1\endcsname}%
+  \def\absf@temp@end{end}%
+  \def\absf@temp@star{*}%
+  \ifx\absf@this@page\absf@temp@end\else
+    \ifnum\absf@this@page=\c@page\relax
+      \ifx\absf@this@col\absf@temp@star
+        \absf@ifslotblocked{#1}{}{%
+          \absf@placedfalse
+          \absf@place@dblcol@deferred{#1}%
+          \ifabsf@placed
+            \absf@remove@from@pending{#1}%
+          \else
+            \absf@block@slot{#1}%
+          \fi
+        }%
+      \fi
+    \fi
+  \fi
+}
+
 \def\absf@try@place#1{%
   \edef\absf@this@page{\csname absf@page@#1\endcsname}%
   \edef\absf@this@col{\csname absf@col@#1\endcsname}%
@@ -258,26 +440,32 @@
   \ifx\absf@this@page\absf@temp@end\else
     \ifnum\absf@this@page=\c@page\relax
       \def\absf@temp@star{*}%
-      \ifx\absf@this@col\absf@temp@star
-        % Spanning figure: place on first column only
-        \if@firstcolumn
-          \absf@place@dblcol{#1}%
-          \absf@remove@from@pending{#1}%
-        \fi
-      \else
-        \ifnum\absf@this@col=\@ne\relax
-          % col=1: place on first column
-          \if@firstcolumn
-            \absf@place@singlecol{#1}%
-            \absf@remove@from@pending{#1}%
+      \ifx\absf@this@col\absf@temp@star\else
+        \absf@ifslotblocked{#1}{}{%
+          \ifnum\absf@this@col=\@ne\relax
+            % col=1: place on first column
+            \if@firstcolumn
+              \absf@placedfalse
+              \absf@place@singlecol{#1}%
+              \ifabsf@placed
+                \absf@remove@from@pending{#1}%
+              \else
+                \absf@block@slot{#1}%
+              \fi
+            \fi
+          \else
+            % col=2: place on second column
+            \if@firstcolumn\else
+              \absf@placedfalse
+              \absf@place@singlecol{#1}%
+              \ifabsf@placed
+                \absf@remove@from@pending{#1}%
+              \else
+                \absf@block@slot{#1}%
+              \fi
+            \fi
           \fi
-        \else
-          % col=2: place on second column
-          \if@firstcolumn\else
-            \absf@place@singlecol{#1}%
-            \absf@remove@from@pending{#1}%
-          \fi
-        \fi
+        }%
       \fi
     \fi
   \fi
@@ -293,8 +481,11 @@
   \@next\@currbox\@freelist{%
     \global\setbox\@currbox\vbox{%
       \hsize\columnwidth
+      \@parboxrestore
+      \@floatboxreset
       \edef\@captype{\absf@this@type}%
       \csname absf@body@#1\endcsname
+      \absf@endbox
     }%
     \edef\absf@ftype{\csname ftype@\absf@this@type\endcsname}%
     \def\absf@temp@t{t}%
@@ -310,8 +501,11 @@
     % Accumulate reduction (applied in \@startcolumn after injection)
     \global\advance\absf@colreduce\ht\@currbox
     \global\advance\absf@colreduce\textfloatsep
+    \global\absf@placedtrue
   }{\PackageWarning{absfigure}{No free float box for float #1}}%
-  \global\expandafter\let\csname absf@body@#1\endcsname\relax
+  \ifabsf@placed
+    \global\expandafter\let\csname absf@body@#1\endcsname\relax
+  \fi
 }
 
 %% ============================================================
@@ -323,9 +517,14 @@
   \edef\absf@this@type{\csname absf@type@#1\endcsname}%
   \@next\@currbox\@freelist{%
     \global\setbox\@currbox\vbox{%
+      \hsize\columnwidth
+      \@parboxrestore
+      \@floatboxreset
       \hsize\textwidth
+      \linewidth\textwidth
       \edef\@captype{\absf@this@type}%
       \csname absf@body@#1\endcsname
+      \absf@endbox
     }%
     \global\dp\@currbox\@ne sp % 1sp signals double-column float
     \edef\absf@ftype{\csname ftype@\absf@this@type\endcsname}%
@@ -344,16 +543,95 @@
     \global\advance\@colht -\ht\@currbox
     \global\advance\@colht -\dbltextfloatsep
     \global\@colroom\@colht
+    \global\absf@placedtrue
   }{\PackageWarning{absfigure}{No free float box for float #1}}%
-  \global\expandafter\let\csname absf@body@#1\endcsname\relax
+  \ifabsf@placed
+    \global\expandafter\let\csname absf@body@#1\endcsname\relax
+  \fi
+}
+
+\def\absf@place@dblcol@deferred#1{%
+  \edef\absf@this@pos{\csname absf@pos@#1\endcsname}%
+  \edef\absf@this@type{\csname absf@type@#1\endcsname}%
+  \@next\@currbox\@freelist{%
+    \global\setbox\@currbox\vbox{%
+      \hsize\columnwidth
+      \@parboxrestore
+      \@floatboxreset
+      \hsize\textwidth
+      \linewidth\textwidth
+      \edef\@captype{\absf@this@type}%
+      \csname absf@body@#1\endcsname
+      \absf@endbox
+    }%
+    \global\dp\@currbox\@ne sp
+    \edef\absf@ftype{\csname ftype@\absf@this@type\endcsname}%
+    \def\absf@temp@t{t}%
+    \ifx\absf@this@pos\absf@temp@t
+      \global\count\@currbox=\numexpr \absf@ftype*32 + 2\relax
+      \begingroup
+        \@insertfalse
+        \@setfloattypecounts
+        \@getfpsbit\tw@
+        \ifodd\@tempcnta
+          \@flsetnum\@dbltopnum
+          \ifnum\@dbltopnum>\z@
+            \@tempswafalse
+            \ifdim\@dbltoproom>\ht\@currbox
+              \@tempswatrue
+            \else
+              \ifnum\@fpstype<\sixt@@n
+                \advance\@dbltoproom\@textmin
+                \ifdim\@dbltoproom>\ht\@currbox
+                  \@tempswatrue
+                \fi
+                \advance\@dbltoproom-\@textmin
+              \fi
+            \fi
+            \if@tempswa
+              \@bitor\@currtype\@deferlist
+              \@testwrongwidth\@currbox
+              \if@test\else
+                \@tempdima-\ht\@currbox
+                \advance\@tempdima
+                  -\ifx\@dbltoplist\@empty \dbltextfloatsep \else \dblfloatsep \fi
+                \global\advance\@dbltoproom\@tempdima
+                \global\advance\@colht\@tempdima
+                \global\advance\@dbltopnum\m@ne
+                \@cons\@dbltoplist\@currbox
+                \global\absf@placedtrue
+              \fi
+            \fi
+          \fi
+        \fi
+      \endgroup
+    \else
+      \global\count\@currbox=\numexpr \absf@ftype*32 + 4\relax
+      \@cons\absf@dblbotlist\@currbox
+      \global\advance\@colht -\ht\@currbox
+      \global\advance\@colht -\dbltextfloatsep
+      \global\@colroom\@colht
+      \global\absf@placedtrue
+    \fi
+  }{\PackageWarning{absfigure}{No free float box for float #1}}%
+  \ifabsf@placed
+    \global\expandafter\let\csname absf@body@#1\endcsname\relax
+  \fi
 }
 
 %% ============================================================
 %% Patch \@startcolumn to inject absolute figures
 %% ============================================================
 
-\AtBeginDocument{%
+  \AtBeginDocument{%
+  \edef\absf@cachefile@expanded{\absf@cachefile}%
+  \begingroup
+    \makeatletter
+    \InputIfFileExists{\absf@cachefile@expanded}{}{}%
+  \endgroup
+  \immediate\openout\absf@stream=\absf@cachefile\relax
   \let\absf@orig@startcolumn\@startcolumn
+  \let\absf@orig@startdblcolumn\@startdblcolumn
   %
   % Patched \@startcolumn:
   %   1. Reset \@colroom = \@colht  (standard)
@@ -378,6 +656,25 @@
         \let\reserved@b\@deferlist
         \global\let\@deferlist\@empty
         \let\@elt\@scolelt
+        \reserved@b
+      \endgroup
+    \fi
+  }%
+  %
+  % Patched \@startdblcolumn:
+  %   Inject spanning absolute floats at the point where LaTeX normally
+  %   handles double-column top floats, so the text columns are built with
+  %   the reduced height for that page.
+  %
+  \def\@startdblcolumn{%
+    \absf@inject@dblfigures
+    \@tryfcolumn \@deferlist
+    \if@fcolmade
+    \else
+      \begingroup
+        \let \reserved@b \@deferlist
+        \global \let \@deferlist \@empty
+        \let \@elt \@sdblcolelt
         \reserved@b
       \endgroup
     \fi
@@ -479,23 +776,29 @@
 \AtEndDocument{%
   \absf@handle@end@figures
   \clearpage
+  \immediate\closeout\absf@stream
   \absf@error@unplaced
 }
 
 \def\absf@error@unplaced{%
   \ifx\absf@pending\empty\else
+    \PackageWarningNoLine{absfigure}%
+      {Absolute float placement is not final.\MessageBreak
+       Rerun LaTeX to finalize figure/table placement.}%
     \expandafter\absf@error@iter\absf@pending,\absf@stop
   \fi
 }
 
 \def\absf@error@iter#1,#2\absf@stop{%
-  \PackageError{absfigure}%
+  \PackageWarningNoLine{absfigure}%
     {Float #1 (\csname absf@type@#1\endcsname, target
      page=\csname absf@page@#1\endcsname,
-     col=\csname absf@col@#1\endcsname) was never placed}%
-    {The target page does not exist in this document.
-     Check that the page number is correct and that the
-     float is defined before that page in the source.}%
+     col=\csname absf@col@#1\endcsname) was not placed in this run.\MessageBreak
+     Rerun LaTeX. If the warning persists, the target page/column is
+     unreachable.\MessageBreak
+     Float #1 was defined on page
+     \csname absf@declpage@#1\endcsname, column
+     \csname absf@declcol@#1\endcsname.}%
   \def\absf@temp@rest{#2}%
   \ifx\absf@temp@rest\empty\else
     \absf@error@iter#2\absf@stop

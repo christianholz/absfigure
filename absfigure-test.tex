@@ -24,11 +24,13 @@
 \listoftables
 
 %% ============================================================
-%% Define absolute figures up front (before their target pages)
+%% Absolute figures and tables can appear anywhere in the source.
+%% If a float targets an earlier page than where it appears, rerun
+%% LaTeX so the placement cache can be replayed.
 %% ============================================================
 
 % Figure on page 2, top of column 1
-\begin{absfigure}{page=2, pos=t, col=1}
+\begin{absfigure}[page=2, pos=t, col=1]
   \centering
   \rule{0.9\columnwidth}{3cm}% placeholder for \includegraphics
   \caption{Absolute figure: page~2, top, column~1}
@@ -36,7 +38,7 @@
 \end{absfigure}
 
 % Figure on page 2, bottom of column 2 (using left/right/top/bottom aliases)
-\begin{absfigure}{page=2, pos=bottom, col=right}
+\begin{absfigure}[page=2, pos=bottom, col=right]
   \centering
   \rule{0.9\columnwidth}{2.5cm}
   \caption{Absolute figure: page~2, bottom, right}
@@ -44,7 +46,7 @@
 \end{absfigure}
 
 % Spanning figure on page 3, top
-\begin{absfigure*}{page=3, pos=t}
+\begin{absfigure*}[page=3, pos=t]
   \centering
   \rule{0.9\textwidth}{4cm}
   \caption{Spanning absolute figure: page~3, top}
@@ -58,7 +60,7 @@
 %% ============================================================
 
 % First bottom figure on page 4, col 2 — should be closest to text
-\begin{absfigure}{page=4, pos=b, col=2}
+\begin{absfigure}[page=4, pos=b, col=2]
   \centering
   \rule{0.9\columnwidth}{2cm}
   \caption{Bottom stack A (defined first) --- page~4, col~2}
@@ -66,7 +68,7 @@
 \end{absfigure}
 
 % Second bottom figure on page 4, col 2 — should stack below A
-\begin{absfigure}{page=4, pos=b, col=2}
+\begin{absfigure}[page=4, pos=b, col=2]
   \centering
   \rule{0.9\columnwidth}{1.5cm}
   \caption{Bottom stack B (defined second) --- page~4, col~2}
@@ -74,14 +76,14 @@
 \end{absfigure}
 
 % Two top figures on the same page/col to test top stacking too
-\begin{absfigure}{page=4, pos=t, col=1}
+\begin{absfigure}[page=4, pos=t, col=1]
   \centering
   \rule{0.9\columnwidth}{2cm}
   \caption{Top stack A (defined first) --- page~4, col~1}
   \label{fig:topA}
 \end{absfigure}
 
-\begin{absfigure}{page=4, pos=t, col=1}
+\begin{absfigure}[page=4, pos=t, col=1]
   \centering
   \rule{0.9\columnwidth}{1.5cm}
   \caption{Top stack B (defined second) --- page~4, col~1}
@@ -89,7 +91,7 @@
 \end{absfigure}
 
 % Spanning figure at bottom of page 3
-\begin{absfigure*}{page=3, pos=bottom}
+\begin{absfigure*}[page=3, pos=bottom]
   \centering
   \rule{0.9\textwidth}{3cm}
   \caption{Spanning absolute figure: page~3, bottom}
@@ -97,7 +99,7 @@
 \end{absfigure*}
 
 % Figure placed on the last page via page=end
-\begin{absfigure}{page=end}
+\begin{absfigure}[page=end]
   \centering
   \rule{0.9\columnwidth}{3cm}
   \caption{Figure placed at the end of the document}
@@ -109,7 +111,7 @@
 %% ============================================================
 
 % Table on page 2, bottom of column 1
-\begin{abstable}{page=2, pos=b, col=1}
+\begin{abstable}[page=2, pos=b, col=1]
   \centering
   \caption{Absolute table: page~2, bottom, column~1}
   \label{tab:p2b1}
@@ -124,7 +126,7 @@
 \end{abstable}
 
 % Spanning table on page 3, top
-\begin{abstable*}{page=3, pos=t}
+\begin{abstable*}[page=3, pos=t]
   \centering
   \caption{Spanning absolute table: page~3, top}
   \label{tab:p3span}
@@ -139,7 +141,7 @@
 \end{abstable*}
 
 % Table placed at the end via page=end
-\begin{abstable}{page=end}
+\begin{abstable}[page=end]
   \centering
   \caption{Table placed at the end of the document}
   \label{tab:end}
@@ -157,7 +159,7 @@
 %% when this code is processed (should be page 1)
 %% ============================================================
 
-\begin{absfigure}{page=current, pos=b, col=2}
+\begin{absfigure}[page=current, pos=b, col=2]
   \centering
   \rule{0.9\columnwidth}{2cm}
   \caption{Figure via page=current (should be page~1)}
@@ -165,7 +167,7 @@
 \end{absfigure}
 
 % Default page (omitted = current page, should also be page 1)
-\begin{absfigure}{pos=t, col=2}
+\begin{absfigure}[pos=t, col=2]
   \centering
   \rule{0.9\columnwidth}{1.5cm}
   \caption{Figure with default page (should be page~1)}
@@ -194,6 +196,7 @@ See Figure~\ref{fig:p2t1} on page~\pageref{fig:p2t1},
 Figure~\ref{fig:p2b2} on page~\pageref{fig:p2b2},
 Figure~\ref{fig:p3span} on page~\pageref{fig:p3span},
 Figure~\ref{fig:p3spanbot} on page~\pageref{fig:p3spanbot},
+Figure~\ref{fig:latep2} on page~\pageref{fig:latep2},
 Figure~\ref{fig:end} on page~\pageref{fig:end},
 Figure~\ref{fig:current} on page~\pageref{fig:current},
 and Figure~\ref{fig:default} on page~\pageref{fig:default}.
@@ -229,5 +232,17 @@ top col~1 has Figures~\ref{fig:topA} and~\ref{fig:topB}.
 
 \fillerpar \fillerpar \fillerpar \fillerpar
 \fillerpar \fillerpar \fillerpar \fillerpar
+
+%% ============================================================
+%% Late-defined earlier-page test: this appears near the end of the
+%% source but targets page 2, so it requires a rerun to settle.
+%% ============================================================
+
+\begin{absfigure}[page=2, pos=t, col=2]
+  \centering
+  \rule{0.9\columnwidth}{1.6cm}
+  \caption{Late-defined figure replayed onto page~2 after rerun}
+  \label{fig:latep2}
+\end{absfigure}
 
 \end{document}

@@ -58,7 +58,7 @@
 
 \author{Christian Holz}
 
-\date{Version 0.1\\2026/02/25}
+\date{Version 0.2\\2026-04-03}
 
 \begin{document}
 
@@ -68,7 +68,7 @@
 \bigskip
 
 \begin{noteblock}
-  This is version~0.1 of \pkg{absfigure}. The package is functional
+  This is version~0.2 of \pkg{absfigure}. The package is functional
   but should be considered experimental. Please report any issues.
 \end{noteblock}
 
@@ -112,7 +112,7 @@ No package options are currently defined.
 \subsection{The \env{absfigure} environment}
 
 \begin{quote}
-\cmd{\begin}\verb|{absfigure}{|\meta{keys}\verb|}|\\
+\cmd{\begin}\verb|{absfigure}[|\meta{keys}\verb|]|\\
 \quad\meta{figure body}\\
 \cmd{\end}\verb|{absfigure}|
 \end{quote}
@@ -124,7 +124,7 @@ normally put inside a \LaTeX{} \env{figure} environment.
 
 \begin{exampleblock}
 \begin{verbatim}
-\begin{absfigure}{page=6, pos=b, col=2}
+\begin{absfigure}[page=6, pos=b, col=2]
   \includegraphics[width=\columnwidth]{fig.pdf}
   \caption{My figure}
   \label{fig:myfig}
@@ -135,7 +135,7 @@ normally put inside a \LaTeX{} \env{figure} environment.
 \subsection{The \env{absfigure*} environment}
 
 \begin{quote}
-\cmd{\begin}\verb|{absfigure*}{|\meta{keys}\verb|}|\\
+\cmd{\begin}\verb|{absfigure*}[|\meta{keys}\verb|]|\\
 \quad\meta{figure body}\\
 \cmd{\end}\verb|{absfigure*}|
 \end{quote}
@@ -146,7 +146,7 @@ since the figure spans both columns.
 
 \begin{exampleblock}
 \begin{verbatim}
-\begin{absfigure*}{page=3, pos=t}
+\begin{absfigure*}[page=3, pos=t]
   \includegraphics[width=\textwidth]{wide.pdf}
   \caption{A wide figure}
 \end{absfigure*}
@@ -156,7 +156,7 @@ since the figure spans both columns.
 \subsection{The \env{abstable} environment}
 
 \begin{quote}
-\cmd{\begin}\verb|{abstable}{|\meta{keys}\verb|}|\\
+\cmd{\begin}\verb|{abstable}[|\meta{keys}\verb|]|\\
 \quad\meta{table body}\\
 \cmd{\end}\verb|{abstable}|
 \end{quote}
@@ -169,7 +169,7 @@ Places a single-column table on a specific page and column. The
 
 \begin{exampleblock}
 \begin{verbatim}
-\begin{abstable}{page=4, pos=t, col=1}
+\begin{abstable}[page=4, pos=t, col=1]
   \centering
   \caption{My table}
   \label{tab:mytab}
@@ -187,7 +187,7 @@ Places a single-column table on a specific page and column. The
 \subsection{The \env{abstable*} environment}
 
 \begin{quote}
-\cmd{\begin}\verb|{abstable*}{|\meta{keys}\verb|}|\\
+\cmd{\begin}\verb|{abstable*}[|\meta{keys}\verb|]|\\
 \quad\meta{table body}\\
 \cmd{\end}\verb|{abstable*}|
 \end{quote}
@@ -198,7 +198,7 @@ since the table spans both columns.
 
 \begin{exampleblock}
 \begin{verbatim}
-\begin{abstable*}{page=5, pos=b}
+\begin{abstable*}[page=5, pos=b]
   \centering
   \caption{A wide table}
   \begin{tabular}{lccccc}
@@ -231,16 +231,14 @@ An error is raised if \key{page} is zero, negative, or non-numeric
 (other than the special values \key{current} and \key{end}).
 
 If the target page number exceeds the number of pages in the document,
-the float is never placed and a hard error is raised at the end of the
+the float is never placed and a warning is raised at the end of the
 \LaTeX{} run.
 
 \begin{warningblock}
-  When using an explicit page number, the float must be defined in the
-  source \emph{before} its target page is shipped out. In practice,
-  group such floats right after \verb|\begin{document}|. With
-  \key{page=current} (or the default), the float is placed on the
-  page being built where the environment appears, so ordering is not
-  a concern.
+  If a float targets a page that has already been shipped out in the
+  current run, it cannot be placed until the next run. In that case,
+  rerun \LaTeX{} after editing. The package writes a placement cache
+  and emits a warning when absolute-float placement is not yet final.
 \end{warningblock}
 
 \subsection{\key{pos}}
@@ -316,9 +314,10 @@ warnings as appropriate:
   or \key{end}.
 
 \item[\key{page} exceeds total pages] %
-  \textbf{Error} at end of run:
-  \texttt{Float N (figure/table, target page=X) was never placed}.
-  Compilation is interrupted; no float is silently dropped.
+  \textbf{Warning} at end of run:
+  \texttt{Float N (figure/table, target page=X) was not placed in this run}.
+  If the warning persists after rerunning \LaTeX{}, the target page or
+  slot is unreachable.
 
 \item[\key{page=current}] %
   Valid. Resolves to the page number being built at definition time.
@@ -326,6 +325,10 @@ warnings as appropriate:
 \item[\key{page=end}] %
   Valid. An extra page is appended after the document's last page,
   and the float is placed there.
+
+\item[float targets an earlier page than its position in the source] %
+  Valid. Rerun \LaTeX{} so the cached float definition can be replayed
+  before that page is built.
 
 \item[\key{pos} is not \key{t}/\key{top} or \key{b}/\key{bottom}] %
   \textbf{Error:} \texttt{Invalid pos value `\meta{value}'}.
@@ -392,6 +395,10 @@ added to \verb|\@dbltoplist| and \verb|\@colht| is reduced instead
 (this reduction naturally survives re-entries since
 \verb|\@startcolumn| resets \verb|\@colroom| from \verb|\@colht|).
 
+If multiple absolute floats target the same slot (\key{page},
+\key{col}, and \key{pos}), they are placed in source order. A later
+float does not overtake an earlier one in the same slot.
+
 \subsection{Why text reflows correctly}
 
 Reducing \verb|\@colroom| inside \verb|\@startcolumn| propagates to
@@ -404,10 +411,10 @@ page, leaving room for the figure.
 %% ============================================================
 
 \begin{itemize}
-\item Floats must be defined in the source \emph{before} their
-  target page. The recommended practice is to group all
-  \env{absfigure}/\env{abstable} environments right after
-  \verb|\begin{document}|.
+\item If a float targets a page that is already past in the current
+  run, an additional \LaTeX{} run is needed to finalize placement.
+  This is expected and works similarly to other multi-pass features
+  such as cross-references and bibliographies.
 
 \item If many absolute floats target the same page, the available
   text height may become negative and \TeX{} will produce an
@@ -438,15 +445,14 @@ page, leaving room for the figure.
 
 \begin{document}
 
-% Define figures up front
-\begin{absfigure}{page=2, pos=t, col=1}
+\begin{absfigure}[page=2, pos=t, col=1]
   \centering
   \includegraphics[width=\columnwidth]{fig1.pdf}
   \caption{Top of page 2, column 1}
   \label{fig:one}
 \end{absfigure}
 
-\begin{absfigure*}{page=3, pos=t}
+\begin{absfigure*}[page=3, pos=t]
   \centering
   \includegraphics[width=\textwidth]{wide.pdf}
   \caption{Spanning figure on page 3}
@@ -454,7 +460,7 @@ page, leaving room for the figure.
 \end{absfigure*}
 
 % A table on page 2, bottom of column 2
-\begin{abstable}{page=2, pos=b, col=2}
+\begin{abstable}[page=2, pos=b, col=2]
   \centering
   \caption{Results}
   \label{tab:results}
@@ -467,7 +473,7 @@ page, leaving room for the figure.
   \end{tabular}
 \end{abstable}
 
-\begin{absfigure}{page=end}
+\begin{absfigure}[page=end]
   \centering
   \includegraphics[width=\columnwidth]{extra.pdf}
   \caption{Appended at the end}
@@ -495,6 +501,13 @@ and Figure~\ref{fig:extra}.
   \item \key{page=end} support
   \item Validation of all keys with meaningful error messages
   \item End-of-document warnings for unplaced figures
+  \end{itemize}
+\item[v0.2 (2026-04-03)] Documentation and placement update.
+  \begin{itemize}
+  \item Environments documented with optional-argument syntax
+  \item Earlier-page placement works across reruns via a cache file
+  \item End-of-run warning now tells the user to rerun \LaTeX{}
+  \item Floats targeting the same slot are placed in source order
   \end{itemize}
 \end{description}
 

@@ -14,7 +14,7 @@ LaTeX's float mechanism (`\begin{figure}[t/b/h/p]`) only provides *relative* pla
 \begin{document}
 
 % Place a figure at the top of page 3, left column
-\begin{absfigure}{page=3, pos=t, col=1}
+\begin{absfigure}[page=3, pos=t, col=1]
   \centering
   \includegraphics[width=\columnwidth]{fig.pdf}
   \caption{Exactly where I want it}
@@ -22,21 +22,21 @@ LaTeX's float mechanism (`\begin{figure}[t/b/h/p]`) only provides *relative* pla
 \end{absfigure}
 
 % Spanning figure (like figure*) at the bottom of page 4
-\begin{absfigure*}{page=4, pos=b}
+\begin{absfigure*}[page=4, pos=b]
   \centering
   \includegraphics[width=\textwidth]{wide.pdf}
   \caption{A wide figure, exactly on page 4}
 \end{absfigure*}
 
 % Or just place on the current page (the default)
-\begin{absfigure}{pos=b, col=r}
+\begin{absfigure}[pos=b, col=r]
   \centering
   \includegraphics[width=\columnwidth]{here.pdf}
   \caption{Bottom of whatever page this code lands on}
 \end{absfigure}
 
 % Tables work the same way
-\begin{abstable}{page=2, pos=t, col=1}
+\begin{abstable}[page=2, pos=t, col=1]
   \centering
   \caption{Results}
   \label{tab:results}
@@ -66,7 +66,12 @@ All four environments — `absfigure`, `absfigure*`, `abstable`, `abstable*` —
 
 - **`page=current`** (or omit `page`): places the float on the page being built where the code appears.
 - **`page=end`**: appends an extra page after the document with the float.
-- **`page=`*N***: places on page *N*. The float must be defined in the source *before* page *N* is reached — in practice, group such floats right after `\begin{document}`.
+- **`page=`*N***: places on page *N*. If the float is defined after page *N* in the source, rerun LaTeX so the placement cache can be replayed on the next pass.
+
+## Placement notes
+
+- Multiple absolute floats targeting the same `page`/`col`/`pos` slot are stacked in source order.
+- If a float targets an earlier page than where it appears in the source, run LaTeX again after editing. The package emits a warning when placement is not yet final.
 
 ## Requirements
 
