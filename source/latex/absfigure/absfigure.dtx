@@ -1,15 +1,78 @@
-%%
-%% This is file `absfigure.sty',
-%% generated with the docstrip utility.
-%%
-%% The original source files were:
-%%
-%% source/latex/absfigure/absfigure.dtx  (with options: `package')
-%% This is a generated file.
-%% 
-%% It is part of the absfigure package.
-%% Copyright (c) 2026 Christian Holz
-%% Released under the MIT License. See LICENSE for details.
+% \iffalse
+%<*driver>
+\PassOptionsToPackage{nohyperref}{doc}
+\documentclass{ltxdoc}
+\usepackage[T1]{fontenc}
+\begin{document}
+\OnlyDescription
+\DocInput{absfigure.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \ProvidesFile{absfigure.dtx}[2026-04-03 v0.2 Absolute figure and table placement]
+% \title{The \textsf{absfigure} package}
+% \author{Christian Holz}
+% \date{2026-04-03 v0.2}
+%
+% \maketitle
+%
+% \section{Overview}
+%
+% The \textsf{absfigure} package places figures and tables at explicit page,
+% column, and edge positions while still integrating with \LaTeX's float
+% machinery. The package provides four environments:
+%
+% \begin{itemize}
+% \item |absfigure| for single-column figures,
+% \item |absfigure*| for double-column figures,
+% \item |abstable| for single-column tables,
+% \item |abstable*| for double-column tables.
+% \end{itemize}
+%
+% Each environment accepts an optional key list in normal float style:
+%
+% \begin{verbatim}
+% \begin{absfigure}[page=3,pos=t,col=2]
+%   ...
+% \end{absfigure}
+% \end{verbatim}
+%
+% The supported keys are:
+%
+% \begin{description}
+% \item[|page|] A positive integer, |current|, or |end|. Omitting |page|
+%   means |current|.
+% \item[|pos|] |t|/|top| or |b|/|bottom|.
+% \item[|col|] |1|/|l|/|left| or |2|/|r|/|right|. This is ignored for the
+%   starred environments.
+% \end{description}
+%
+% \section{User Notes}
+%
+% Absolute floats targeting the same |page|/|col|/|pos| slot are placed in
+% source order.
+%
+% If a float targets a page that has already been shipped out in the current
+% run, it cannot be placed until the next run. In that case rerun \LaTeX{}.
+% The package writes a cache file and emits a warning like
+% ``Absolute float placement is not final. Rerun \LaTeX{} to finalize
+% figure/table placement.''
+%
+% The package loads its own direct dependencies with |\RequirePackage|, so the
+% user only needs |\usepackage{absfigure}|. Content-specific packages such as
+% |graphicx| or |subcaption| still need to be loaded separately when used in
+% the float body.
+%
+% \section{Installation}
+%
+% Run |latex absfigure.ins| to extract |absfigure.sty| from this file.
+% Run |pdflatex absfigure.dtx| to build the manual.
+%
+% \section{Implementation}
+%
+%    \begin{macrocode}
+%<*package>
 %%
 %% absfigure.sty
 %% Absolute figure and table placement for LaTeX
@@ -29,16 +92,25 @@
 %% Storage
 %% ============================================================
 
+% Counter for unique float IDs
 \newcount\absf@count
 \absf@count=\z@
 
+% Pending list: comma-separated IDs
 \def\absf@pending{}
 
+% Track column identity to handle \@startcolumn re-entries.
+% \@startcolumn may be called multiple times for the same column
+% (via the \@whilesw\if@fcolmade loop). Each re-entry resets
+% \@colroom = \@colht, undoing our space reduction. We detect
+% re-entries by comparing page+column identity and re-apply
+% the stored reduction.
 \def\absf@lastcolid{}
 \newdimen\absf@colreduce
 \newcount\absf@injectpass
 \absf@injectpass=\z@
 
+% Our own spanning-bottom float list (the kernel has no \@dblbotlist)
 \global\let\absf@dblbotlist\@empty
 
 %% ============================================================
@@ -56,6 +128,7 @@
 
 \define@key{absfigure}{page}{\absf@set@page{#1}}
 
+% Normalize page value: current→\the\c@page, pass through otherwise
 \def\absf@set@page#1{%
   \def\absf@temp{#1}%
   \def\absf@temp@current{current}%
@@ -67,6 +140,7 @@
 }
 \define@key{absfigure}{pos}[t]{\absf@set@pos{#1}}
 
+% Normalize pos value: top→t, bottom→b, pass through otherwise
 \def\absf@set@pos#1{%
   \def\absf@temp{#1}%
   \def\absf@temp@top{top}%
@@ -81,6 +155,7 @@
 }
 \define@key{absfigure}{col}[1]{\absf@set@col{#1}}
 
+% Normalize col value: l/left→1, r/right→2, pass through otherwise
 \def\absf@set@col#1{%
   \def\absf@temp{#1}%
   \def\absf@temp@left{left}%
@@ -104,6 +179,8 @@
 %% Validation helpers
 %% ============================================================
 
+% Validate page key: must be a positive integer or "end".
+% Non-numeric text will cause TeX's own \ifnum error.
 \def\absf@validate@page#1{%
   \edef\absf@temp{#1}%
   \def\absf@temp@end{end}%
@@ -117,6 +194,7 @@
   \fi
 }
 
+% Validate pos key
 \def\absf@validate@pos#1{%
   \edef\absf@temp{#1}%
   \def\absf@temp@t{t}%
@@ -130,6 +208,7 @@
   \fi
 }
 
+% Validate col key (for non-starred variant)
 \def\absf@validate@col#1{%
   \edef\absf@temp{#1}%
   \def\absf@temp@one{1}%
@@ -156,6 +235,9 @@
 %% ============================================================
 
 %% \absf@process@float{<type>}{<starred>}{<keys>}
+%   #1 = float type: figure or table
+%   #2 = starred flag: 0 = single-column, 1 = spanning
+%   #3 = key-value options
 \def\absf@process@float#1#2#3{%
   \def\absf@cur@page{}%
   \def\absf@cur@pos{t}%
@@ -684,6 +766,8 @@
   }%
 }
 
+% Attach spanning bottom floats below the output box.
+% Mirrors \@combinedblfloats but places floats at the bottom.
 \def\absf@combine@dblbot{%
   \ifx\absf@dblbotlist\@empty\else
     \setbox\@tempboxa\vbox{}%
@@ -797,6 +881,8 @@
 }
 
 %% ============================================================
+%</package>
+%    \end{macrocode}
+%
+% \Finale
 \endinput
-%%
-%% End of file `absfigure.sty'.

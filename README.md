@@ -81,11 +81,18 @@ All four environments — `absfigure`, `absfigure*`, `abstable`, `abstable*` —
 
 ## Installation
 
-Copy `absfigure.sty` to your project directory or to your local `texmf` tree.
+For normal use, copy `absfigure.sty` to your project directory or to your local `texmf` tree.
+
+For package maintenance / CTAN packaging:
+
+- Canonical package sources live in `source/latex/absfigure/`.
+- Run `latex source/latex/absfigure/absfigure.ins` from the package root to regenerate `absfigure.sty`.
+- Run `latexmk -pdf -interaction=nonstopmode -output-directory=doc/latex/absfigure doc/latex/absfigure/absfigure.tex` to build the manual.
+- Run `latexmk -pdf -interaction=nonstopmode -output-directory=doc/latex/absfigure doc/latex/absfigure/absfigure-test.tex` to build the example document.
 
 ## Documentation
 
-Full documentation is in [`absfigure.pdf`](absfigure.pdf) (compiled from `absfigure.tex`).
+Full documentation is in [`doc/latex/absfigure/absfigure.pdf`](doc/latex/absfigure/absfigure.pdf), generated from [`source/latex/absfigure/absfigure.dtx`](source/latex/absfigure/absfigure.dtx).
 
 ## License
 

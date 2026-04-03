@@ -1,0 +1,278 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{parskip}
+
+\title{\textsf{absfigure}: User Guide}
+\author{Christian Holz}
+\date{2026-04-03 v0.2}
+
+\newcommand{\pkg}{\textsf{absfigure}}
+\newcommand{\env}[1]{\texttt{#1}}
+\newcommand{\key}[1]{\texttt{#1}}
+
+\begin{document}
+\maketitle
+
+\section{What the package does}
+
+\pkg{} lets you place figures and tables on an explicit page, at the top or
+bottom, and in a specific column when the document is two-column. In other
+words, it supports requests such as:
+
+\begin{itemize}
+\item put this figure at the top of page 3, left column
+\item put this table at the bottom of page 6, right column
+\item put this wide figure across both columns on page 2
+\end{itemize}
+
+Unlike absolute positioning packages that place content outside the float
+system, \pkg{} still uses \LaTeX{} float machinery. Captions, labels,
+references, list-of-figures, and list-of-tables continue to work normally, and
+regular \env{figure}/\env{table} floats can still appear alongside absolute
+ones.
+
+\section{Provided environments}
+
+The package provides four environments:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Environment & Meaning \\
+\midrule
+\env{absfigure} & single-column figure \\
+\env{absfigure*} & double-column figure \\
+\env{abstable} & single-column table \\
+\env{abstable*} & double-column table \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All four environments use the same optional key syntax:
+
+\begin{verbatim}
+\begin{absfigure}[page=3,pos=t,col=2]
+  ...
+\end{absfigure}
+\end{verbatim}
+
+\section{Quick start}
+
+\begin{verbatim}
+\documentclass[twocolumn]{article}
+\usepackage{graphicx}
+\usepackage{absfigure}
+
+\begin{document}
+
+\begin{absfigure}[page=3,pos=t,col=1]
+  \centering
+  \includegraphics[width=\columnwidth]{fig.pdf}
+  \caption{Top of page 3, left column}
+  \label{fig:left}
+\end{absfigure}
+
+\begin{absfigure*}[page=4,pos=b]
+  \centering
+  \includegraphics[width=\linewidth]{wide.pdf}
+  \caption{Bottom of page 4, full width}
+  \label{fig:wide}
+\end{absfigure*}
+
+\begin{abstable}[pos=b,col=r]
+  \centering
+  \caption{Bottom of the current page, right column}
+  \label{tab:results}
+  \begin{tabular}{lc}
+    \toprule
+    Method & Score \\
+    \midrule
+    Ours & 94.2 \\
+    \bottomrule
+  \end{tabular}
+\end{abstable}
+
+\end{document}
+\end{verbatim}
+
+\section{Keys}
+
+\begin{center}
+\begin{tabular}{>{\ttfamily}l>{\ttfamily}l>{\ttfamily}l p{2.7in}}
+\toprule
+Key & Values & Default & Meaning \\
+\midrule
+page & integer, current, end & current & target page number \\
+pos & t, top, b, bottom & t & top or bottom placement \\
+col & 1, l, left, 2, r, right & 1 & target column; ignored for starred environments \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{\key{page}}
+
+\begin{itemize}
+\item Omit \key{page}, or write \key{page=current}, to target the page being
+  built where the environment appears.
+\item Use \key{page=<number>} to target a specific page.
+\item Use \key{page=end} to append a final page containing the float.
+\end{itemize}
+
+\subsection*{\key{pos}}
+
+\begin{itemize}
+\item \key{pos=t} or \key{pos=top} places the float at the top of the target
+  page or column.
+\item \key{pos=b} or \key{pos=bottom} places the float at the bottom of the
+  target page or column.
+\end{itemize}
+
+\subsection*{\key{col}}
+
+\begin{itemize}
+\item \key{col=1}, \key{col=l}, or \key{col=left} selects the left column.
+\item \key{col=2}, \key{col=r}, or \key{col=right} selects the right column.
+\item For \env{absfigure*} and \env{abstable*}, the package ignores
+  \key{col} because the float spans both columns.
+\end{itemize}
+
+\section{Common patterns}
+
+\subsection*{Single-column figure on a specific page}
+
+\begin{verbatim}
+\begin{absfigure}[page=5,pos=t,col=2]
+  \centering
+  \includegraphics[width=\columnwidth]{example.pdf}
+  \caption{Top of page 5, right column}
+\end{absfigure}
+\end{verbatim}
+
+\subsection*{Wide figure across both columns}
+
+\begin{verbatim}
+\begin{absfigure*}[page=2,pos=t]
+  \centering
+  \includegraphics[width=\linewidth]{overview.pdf}
+  \caption{Spanning figure on page 2}
+\end{absfigure*}
+\end{verbatim}
+
+Inside \env{absfigure*} and \env{abstable*}, \verb|\linewidth| is the full text
+width, as with ordinary \env{figure*} and \env{table*}.
+
+\subsection*{Table on the current page}
+
+\begin{verbatim}
+\begin{abstable}[pos=b,col=1]
+  \centering
+  \caption{Bottom of the current page}
+  \begin{tabular}{lc}
+    ...
+  \end{tabular}
+\end{abstable}
+\end{verbatim}
+
+\subsection*{Appendix-style final page}
+
+\begin{verbatim}
+\begin{absfigure*}[page=end,pos=t]
+  \centering
+  \includegraphics[width=\linewidth]{teaser.pdf}
+  \caption{Placed on a final appended page}
+\end{absfigure*}
+\end{verbatim}
+
+\section{How placement behaves}
+
+\subsection*{Ordering}
+
+If several absolute floats target the same slot, meaning the same combination
+of \key{page}, \key{col}, and \key{pos}, they are placed in source order.
+
+\subsection*{Reruns}
+
+If a float targets a page that has already been shipped out in the current run,
+\LaTeX{} cannot go back and modify that earlier page immediately. In that case,
+\pkg{} saves the float definition and replays it on the next run.
+
+When this happens, the log includes a warning telling you that placement is not
+yet final and that you should rerun \LaTeX{}.
+
+This is normal in cases such as:
+
+\begin{itemize}
+\item a float defined on page 6 that targets page 4
+\item major edits that shift page breaks
+\item multiple absolute floats competing for the same constrained slot
+\end{itemize}
+
+\subsection*{What happens when a float does not fit}
+
+The package does not crop or overlap floats. If the requested page, position,
+and column do not have enough room, the float may remain unplaced and the log
+will report that fact. Typical reasons are:
+
+\begin{itemize}
+\item the float is taller than the available space
+\item too many floats are competing for the same slot
+\item the requested placement is structurally impossible
+\end{itemize}
+
+\section{What the package loads}
+
+For normal use, add only:
+
+\begin{verbatim}
+\usepackage{absfigure}
+\end{verbatim}
+
+\pkg{} loads its own direct dependencies. Users do not need to preload the
+packages it requires internally.
+
+You still need to load content-specific packages when your float body uses
+them, for example:
+
+\begin{itemize}
+\item \texttt{graphicx} for \verb|\includegraphics|
+\item \texttt{subcaption} for \env{subfigure}
+\item \texttt{booktabs}, \texttt{tabularx}, or similar table packages
+\end{itemize}
+
+\section{Installation}
+
+\subsection*{Project-local installation}
+
+Copy \texttt{absfigure.sty} into your project directory and load it with
+\verb|\usepackage{absfigure}|.
+
+\subsection*{Maintainer / CTAN source layout}
+
+The canonical source files are:
+
+\begin{itemize}
+\item \texttt{source/latex/absfigure/absfigure.dtx}
+\item \texttt{source/latex/absfigure/absfigure.ins}
+\end{itemize}
+
+To regenerate the runtime package from the documented source:
+
+\begin{verbatim}
+latex source/latex/absfigure/absfigure.ins
+\end{verbatim}
+
+\section{Where to look next}
+
+The repository also includes:
+
+\begin{itemize}
+\item \texttt{README.md} for a short overview
+\item \texttt{doc/latex/absfigure/absfigure-test.tex} for a demo document
+\item \texttt{source/latex/absfigure/absfigure.dtx} for the package source
+\end{itemize}
+
+\end{document}
