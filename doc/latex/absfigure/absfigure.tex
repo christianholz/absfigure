@@ -8,7 +8,7 @@
 
 \title{\textsf{absfigure}: User Guide}
 \author{Christian Holz}
-\date{2026-04-03 v0.2}
+\date{2026-07-18 v0.3}
 
 \newcommand{\pkg}{\textsf{absfigure}}
 \newcommand{\env}[1]{\texttt{#1}}
@@ -193,6 +193,9 @@ width, as with ordinary \env{figure*} and \env{table*}.
 
 If several absolute floats target the same slot, meaning the same combination
 of \key{page}, \key{col}, and \key{pos}, they are placed in source order.
+
+Pages processed by the \textsf{balance} package are supported. Absolute floats
+remain attached to their requested physical columns after balancing.
 
 \subsection*{Reruns}
 

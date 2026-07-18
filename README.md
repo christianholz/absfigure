@@ -71,6 +71,7 @@ All four environments — `absfigure`, `absfigure*`, `abstable`, `abstable*` —
 ## Placement notes
 
 - Multiple absolute floats targeting the same `page`/`col`/`pos` slot are stacked in source order.
+- The `balance` package is supported; balancing a page preserves each absolute float's requested physical column.
 - If a float targets an earlier page than where it appears in the source, run LaTeX again after editing. The package emits a warning when placement is not yet final.
 
 ## Requirements
@@ -89,6 +90,7 @@ For package maintenance / CTAN packaging:
 - Run `latex source/latex/absfigure/absfigure.ins` from the package root to regenerate `absfigure.sty`.
 - Run `latexmk -pdf -interaction=nonstopmode -output-directory=doc/latex/absfigure doc/latex/absfigure/absfigure.tex` to build the manual.
 - Run `latexmk -pdf -interaction=nonstopmode -output-directory=doc/latex/absfigure doc/latex/absfigure/absfigure-test.tex` to build the example document.
+- Run `latexmk -pdf -interaction=nonstopmode -output-directory=/tmp doc/latex/absfigure/absfigure-balance-test.tex` to exercise `balance` compatibility.
 
 ## Documentation
 

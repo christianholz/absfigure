@@ -1,0 +1,47 @@
+\documentclass[twocolumn]{article}
+
+\usepackage[margin=18mm]{geometry}
+\usepackage{balance}
+\usepackage{absfigure}
+
+\newcommand{\filler}{%
+  Absolute placement and balanced columns must cooperate without changing the
+  requested physical column. This sentence provides deterministic test text.\par
+}
+
+\begin{document}
+\balance
+
+\begin{abstable}[page=2,pos=t,col=1]
+  \centering
+  \caption{BALANCE TOP LEFT}
+  \rule{0.8\columnwidth}{12mm}
+\end{abstable}
+
+\begin{abstable}[page=2,pos=t,col=2]
+  \centering
+  \caption{BALANCE TOP RIGHT}
+  \rule{0.8\columnwidth}{12mm}
+\end{abstable}
+
+\begin{abstable}[page=2,pos=b,col=1]
+  \centering
+  \caption{BALANCE BOTTOM LEFT}
+  \rule{0.8\columnwidth}{10mm}
+\end{abstable}
+
+\begin{abstable}[page=2,pos=b,col=2]
+  \centering
+  \caption{BALANCE BOTTOM RIGHT}
+  \rule{0.8\columnwidth}{10mm}
+\end{abstable}
+
+\newcount\fillercount
+\fillercount=0
+\loop
+  \filler
+  \advance\fillercount by 1
+\ifnum\fillercount<90
+\repeat
+
+\end{document}

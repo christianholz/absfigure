@@ -10,10 +10,10 @@
 %</driver>
 % \fi
 %
-% \ProvidesFile{absfigure.dtx}[2026-04-03 v0.2 Absolute figure and table placement]
+% \ProvidesFile{absfigure.dtx}[2026-07-18 v0.3 Absolute figure and table placement]
 % \title{The \textsf{absfigure} package}
 % \author{Christian Holz}
-% \date{2026-04-03 v0.2}
+% \date{2026-07-18 v0.3}
 %
 % \maketitle
 %
@@ -52,6 +52,8 @@
 %
 % Absolute floats targeting the same |page|/|col|/|pos| slot are placed in
 % source order.
+% Pages processed by the \textsf{balance} package are supported; absolute
+% floats remain attached to their requested physical columns after balancing.
 %
 % If a float targets a page that has already been shipped out in the current
 % run, it cannot be placed until the next run. In that case rerun \LaTeX{}.
@@ -81,7 +83,7 @@
 %% Released under the MIT License. See LICENSE for details.
 %%
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
-\ProvidesPackage{absfigure}[2026-04-03 v0.2 Absolute figure and table placement]
+\ProvidesPackage{absfigure}[2026-07-18 v0.3 Absolute figure and table placement]
 
 \RequirePackage{keyval}
 \RequirePackage{environ}
@@ -109,6 +111,28 @@
 \newdimen\absf@colreduce
 \newcount\absf@injectpass
 \absf@injectpass=\z@
+
+% The balance package builds its last page as one tall column and splits it
+% afterwards.  Keep per-column absolute floats out of that intermediate box;
+% they are attached after the split by \absf@balancecol.
+\newif\ifabsf@balancedfloats
+\newbox\absf@bal@topone
+\newbox\absf@bal@botone
+\newbox\absf@bal@toptwo
+\newbox\absf@bal@bottwo
+\newdimen\absf@bal@heightone
+\newdimen\absf@bal@heighttwo
+\def\absf@bal@preparedpage{}
+
+\def\absf@ifbalanceactive{%
+  \@ifundefined{@BAdblcol}{\@secondoftwo}{%
+    \ifx\@outputdblcol\@BAdblcol
+      \expandafter\@firstoftwo
+    \else
+      \expandafter\@secondoftwo
+    \fi
+  }%
+}
 
 % Our own spanning-bottom float list (the kernel has no \@dblbotlist)
 \global\let\absf@dblbotlist\@empty
@@ -439,14 +463,18 @@
           \fi
         \fi
       \else
-        \absf@get@currentcol
-        \ifx\absf@this@col\absf@currentcol
-          \absf@placedfalse
-          \absf@place@singlecol{#1}%
-          \ifabsf@placed
-            \absf@reserve@singlecol\@currbox
-          \fi
-        \fi
+        \absf@ifbalanceactive
+          {}% balance attaches single-column floats after splitting the page
+          {%
+            \absf@get@currentcol
+            \ifx\absf@this@col\absf@currentcol
+              \absf@placedfalse
+              \absf@place@singlecol{#1}%
+              \ifabsf@placed
+                \absf@reserve@singlecol\@currbox
+              \fi
+            \fi
+          }%
       \fi
     \fi
   \fi
@@ -722,7 +750,9 @@
     \ifx\absf@curcolid\absf@lastcolid\else
       \global\absf@colreduce\z@
       \xdef\absf@lastcolid{\absf@curcolid}%
-      \absf@inject@figures
+      \absf@ifbalanceactive
+        {\absf@prepare@balanced\absf@set@balanced@reduction}%
+        {\absf@inject@figures}%
     \fi
     \global\advance\@colroom -\absf@colreduce
     \@tryfcolumn\@deferlist
@@ -764,6 +794,184 @@
     \absf@orig@combinedblfloats
     \absf@combine@dblbot
   }%
+  % balance.sty cannot expose a real second-column start: it makes one tall
+  % column and splits it.  Replace only its splitting helper, leaving its
+  % output routine and \balance/\nobalance interface intact.
+  \@ifundefined{@BAlancecol}{}{%
+    \let\absf@orig@BAlancecol\@BAlancecol
+    \let\@BAlancecol\absf@balancecol
+  }%
+}
+
+% Collect the absolute floats for the balanced page into four aggregate boxes.
+\def\absf@collect@balanced{%
+  \global\absf@balancedfloatsfalse
+  \global\setbox\absf@bal@topone\box\voidb@x
+  \global\setbox\absf@bal@botone\box\voidb@x
+  \global\setbox\absf@bal@toptwo\box\voidb@x
+  \global\setbox\absf@bal@bottwo\box\voidb@x
+  \ifx\absf@pending\empty\else
+    \expandafter\absf@collect@balanced@iter\absf@pending,\absf@stop
+  \fi
+}
+
+\def\absf@prepare@balanced{%
+  \edef\absf@temp{\the\c@page}%
+  \ifx\absf@temp\absf@bal@preparedpage\else
+    \xdef\absf@bal@preparedpage{\the\c@page}%
+    \absf@collect@balanced
+    \ifabsf@balancedfloats
+      \absf@balanced@footprint\absf@bal@topone\absf@bal@botone
+        \absf@bal@heightone
+      \absf@balanced@footprint\absf@bal@toptwo\absf@bal@bottwo
+        \absf@bal@heighttwo
+    \fi
+  \fi
+}
+
+\def\absf@set@balanced@reduction{%
+  \ifabsf@balancedfloats
+    \global\absf@colreduce\absf@bal@heightone
+    \if@BAlanceone
+      \global\advance\absf@colreduce\absf@bal@heighttwo
+    \fi
+  \fi
+}
+
+\def\absf@collect@balanced@iter#1,#2\absf@stop{%
+  \absf@collect@balanced@one{#1}%
+  \def\absf@temp@rest{#2}%
+  \ifx\absf@temp@rest\empty\else
+    \absf@collect@balanced@iter#2\absf@stop
+  \fi
+}
+
+\def\absf@collect@balanced@one#1{%
+  \edef\absf@this@page{\csname absf@page@#1\endcsname}%
+  \edef\absf@this@col{\csname absf@col@#1\endcsname}%
+  \def\absf@temp@end{end}%
+  \def\absf@temp@star{*}%
+  \ifx\absf@this@page\absf@temp@end\else
+    \ifnum\absf@this@page=\c@page\relax
+      \ifx\absf@this@col\absf@temp@star\else
+        \edef\absf@this@pos{\csname absf@pos@#1\endcsname}%
+        \edef\absf@this@type{\csname absf@type@#1\endcsname}%
+        \setbox\@tempboxa\vbox{%
+          \hsize\columnwidth
+          \@parboxrestore
+          \@floatboxreset
+          \edef\@captype{\absf@this@type}%
+          \csname absf@body@#1\endcsname
+          \absf@endbox
+        }%
+        \def\absf@temp@t{t}%
+        \ifnum\absf@this@col=\@ne
+          \ifx\absf@this@pos\absf@temp@t
+            \absf@append@balanced\absf@bal@topone
+          \else
+            \absf@append@balanced\absf@bal@botone
+          \fi
+        \else
+          \ifx\absf@this@pos\absf@temp@t
+            \absf@append@balanced\absf@bal@toptwo
+          \else
+            \absf@append@balanced\absf@bal@bottwo
+          \fi
+        \fi
+        \global\absf@balancedfloatstrue
+        \global\expandafter\let\csname absf@body@#1\endcsname\relax
+        \absf@remove@from@pending{#1}%
+      \fi
+    \fi
+  \fi
+}
+
+\def\absf@append@balanced#1{%
+  \ifvoid#1%
+    \global\setbox#1\vbox{\unvbox\@tempboxa}%
+  \else
+    \global\setbox#1\vbox{%
+      \unvbox#1%
+      \vskip\floatsep
+      \unvbox\@tempboxa
+    }%
+  \fi
+}
+
+\def\absf@balanced@footprint#1#2#3{%
+  \global#3\z@
+  \ifvoid#1\else
+    \global\advance#3\ht#1%
+    \global\advance#3\dp#1%
+    \global\advance#3\textfloatsep
+  \fi
+  \ifvoid#2\else
+    \global\advance#3\ht#2%
+    \global\advance#3\dp#2%
+    \global\advance#3\textfloatsep
+  \fi
+}
+
+\def\absf@balanced@assemble#1#2#3#4{%
+  \setbox#1\vbox to#4{%
+    \ifvoid#2\else
+      \box#2%
+      \vskip\textfloatsep
+    \fi
+    \unvbox#1%
+    \ifvoid#3\else
+      \vfil
+      \vskip\textfloatsep
+      \box#3%
+    \fi
+    \vfil
+  }%
+}
+
+% balance.sty's original algorithm, extended so each physical column has its
+% own float allowance and receives only the floats addressed to that column.
+\def\absf@balancecol{%
+  \if@twocolumn
+    \absf@prepare@balanced
+    \ifabsf@balancedfloats
+      \setbox\z@\vbox{\unvbox\@outputbox}%
+      \@tempdima\ht\z@
+      \advance\@tempdima\topskip
+      \advance\@tempdima-\baselineskip
+      \advance\@tempdima\absf@bal@heighttwo
+      \advance\@tempdima-\absf@bal@heightone
+      \divide\@tempdima\tw@
+      \splittopskip\topskip
+      {\vbadness\@M
+       \loop
+         \global\setbox\thr@@\copy\z@
+         \global\setbox\@ne\vsplit\thr@@ to\@tempdima
+         \dimen@\ht\thr@@
+         \advance\dimen@\absf@bal@heighttwo
+         \@tempdimb\@tempdima
+         \advance\@tempdimb\absf@bal@heightone
+         \ifdim\dimen@>\@tempdimb
+           \global\advance\@tempdima\@ne pt
+       \repeat}%
+      \@tempdimb\@tempdima
+      \advance\@tempdimb\absf@bal@heightone
+      \dimen@\ht\thr@@
+      \advance\dimen@\absf@bal@heighttwo
+      \ifdim\dimen@>\@tempdimb \@tempdimb\dimen@ \fi
+      \setbox\@leftcolumn\vbox{\unvbox\@ne}%
+      \setbox\@outputbox\vbox{%
+        \dimen@\dp\thr@@
+        \unvbox\thr@@
+        \kern-\dimen@
+      }%
+      \absf@balanced@assemble\@leftcolumn\absf@bal@topone
+        \absf@bal@botone\@tempdimb
+      \absf@balanced@assemble\@outputbox\absf@bal@toptwo
+        \absf@bal@bottwo\@tempdimb
+    \else
+      \absf@orig@BAlancecol
+    \fi
+  \fi
 }
 
 % Attach spanning bottom floats below the output box.
