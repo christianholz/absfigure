@@ -71,8 +71,32 @@ All four environments — `absfigure`, `absfigure*`, `abstable`, `abstable*` —
 ## Placement notes
 
 - Multiple absolute floats targeting the same `page`/`col`/`pos` slot are stacked in source order.
-- The `balance` package is supported; balancing a page preserves each absolute float's requested physical column.
+- The `balance` package is supported; absolute floats on a balanced page preserve their requested physical columns.
 - If a float targets an earlier page than where it appears in the source, run LaTeX again after editing. The package emits a warning when placement is not yet final.
+
+### Interaction with `balance` and ordinary floats
+
+The `balance` package leaves balancing enabled after `\balance`; it remains
+active until `\nobalance`. If `\balance` is used before a forced page boundary
+to balance only the preceding material, disable it immediately after the
+boundary:
+
+```latex
+\balance
+% final material on the page to balance
+\newpage       % or \clearpage
+\nobalance
+```
+
+Leaving `\balance` active across later pages can make ordinary `figure` and
+`table` floats appear out of source order. This is behavior of `balance`, not
+of the absolute-float environments. `absfigure` deliberately does not redefine
+the standard float environments or insert implicit float barriers.
+
+The usual LaTeX rules also continue to apply to ordinary floats. In particular,
+a single-column `[H]` float can overtake deferred `figure*` or `table*` floats.
+When source order across such a semantic boundary matters, load `placeins` and
+insert `\FloatBarrier` explicitly at that boundary.
 
 ## Requirements
 

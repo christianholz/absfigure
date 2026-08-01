@@ -54,6 +54,27 @@
 % source order.
 % Pages processed by the \textsf{balance} package are supported; absolute
 % floats remain attached to their requested physical columns after balancing.
+% The \textsf{balance} package leaves balancing enabled after |\balance| and
+% does not restore the normal output routine until |\nobalance|. When
+% |\balance| is used before a forced page boundary to balance only the
+% preceding material, disable it immediately after that boundary:
+%
+% \begin{verbatim}
+% \balance
+% % final material on the page to balance
+% \newpage       % or \clearpage
+% \nobalance
+% \end{verbatim}
+%
+% Leaving |\balance| active across later pages can make ordinary |figure| and
+% |table| floats appear out of source order. This is behavior of
+% \textsf{balance}, not of the absolute-float environments. This package does
+% not redefine the standard float environments or insert implicit barriers.
+%
+% Normal \LaTeX{} ordering rules still apply to ordinary floats. In particular,
+% a single-column |[H]| float can overtake deferred |figure*| or |table*|
+% floats. If strict ordering is required at a semantic boundary, load
+% \textsf{placeins} and insert |\FloatBarrier| explicitly there.
 %
 % If a float targets a page that has already been shipped out in the current
 % run, it cannot be placed until the next run. In that case rerun \LaTeX{}.

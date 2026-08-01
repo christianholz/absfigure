@@ -197,6 +197,33 @@ of \key{page}, \key{col}, and \key{pos}, they are placed in source order.
 Pages processed by the \textsf{balance} package are supported. Absolute floats
 remain attached to their requested physical columns after balancing.
 
+\subsection*{Interaction with \textsf{balance} and ordinary floats}
+
+The \textsf{balance} package leaves balancing enabled after \verb|\balance|;
+it remains active until \verb|\nobalance|. If \verb|\balance| is used before a
+forced page boundary to balance only the preceding material, disable it
+immediately after the boundary:
+
+\begin{verbatim}
+\balance
+% final material on the page to balance
+\newpage       % or \clearpage
+\nobalance
+\end{verbatim}
+
+Leaving \verb|\balance| active across later pages can make ordinary
+\env{figure} and \env{table} floats appear out of source order. This behavior
+comes from \textsf{balance}, which builds and splits combined column material;
+it is not caused by the absolute-float environments. \pkg{} deliberately does
+not redefine the standard float environments or insert implicit float
+barriers.
+
+The usual \LaTeX{} rules also continue to apply to ordinary floats. In
+particular, a single-column \verb|[H]| float can overtake deferred
+\env{figure*} or \env{table*} floats. When source order across such a semantic
+boundary matters, load \textsf{placeins} and insert \verb|\FloatBarrier|
+explicitly at that boundary.
+
 \subsection*{Reruns}
 
 If a float targets a page that has already been shipped out in the current run,
